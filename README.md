@@ -95,7 +95,6 @@ The Data Flow System is a microservices-based application designed to generate, 
 
 ## Future Enhancements
 - Add a monitoring service for real-time visualization of processed data.
-- Implement retry mechanisms for message delivery failures in the queue.
 - Add support for dynamic filtering criteria.
 
 ---
