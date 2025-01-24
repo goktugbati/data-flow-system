@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-filter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-filter
+  template:
+    metadata:
+      labels:
+        app: data-filter
+    spec:
+      containers:
+        - name: data-filter
+          image: data-filter:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8082
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data/dataflow
+            - name: config-volume
+              mountPath: /app/config
+          env:
+            - name: SPRING_CONFIG_LOCATION
+              value: /app/config/application.yml
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: data-filter-pvc
+        - name: config-volume
+          configMap:
+            name: data-filter-config

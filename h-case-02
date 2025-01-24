@@ -1,0 +1,43 @@
+1. Random veri üreten bir kaynak uygulama yazılacak:
+	Bu verinin içinde 
+		timestamp, 
+		0-100 arasında random integer, 
+		üstteki iki verinin md5 hash'inin son 2 karakteri
+	Saniyede 5 değer üretecek.
+	Üretilen değerler bir socket'e yazılacak.
+
+2. Dinleyen socket tarafındaki uygulama filtreleme işlemi yapacak:
+	İkinci alandaki değer 90'ın üstündeyse diğer alanlarla beraber bir message queue'ye gönderilecek.
+	Değilse bir file'a append yapacak şekilde yazacak.
+
+3. Message Queue'yi dinleyen iki uygulama yazılacak:
+	Birinci uygulama MQ'dan aldığı değerleri bir database tablosuna yazacak. Insert dışında Database tarafının kodlanmasına gerek yok.
+	İkinci uygulama aynı mesajı bir mongo collection'a yazacak. Ardışık gelen hash alanları yalnız "99"dan büyükse aynı kayıt içinde nested saklanacak. Değilse yeni kayıt oluşturulacak.
+
+
+	Data Flow System Requirements:
+
+	1. Data Generator Service:
+	   - Generates data containing:
+	     * timestamp
+	     * random integer (0-100)
+	     * last 2 chars of MD5 hash of above values
+	   - Produces 5 values per second
+	   - Writes to a websocket
+
+	2. Data Filter Service:
+	   - Listens to websocket
+	   - Filters data:
+	     * If random value > 90: sends to message queue
+	     * Otherwise: appends to file
+
+	3. Message Queue Consumer Services:
+	   a) Database Writer Service:
+	      - Reads from queue
+	      - Writes to database table
+	      
+	   b) MongoDB Writer Service:
+	      - Reads from queue
+	      - Writes to MongoDB collection
+	      - Nests consecutive records in same document if hash > "99"
+	      - Creates new document otherwise

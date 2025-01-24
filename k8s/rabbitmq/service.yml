@@ -1,0 +1,33 @@
+# k8s/data-generator/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-generator
+  template:
+    metadata:
+      labels:
+        app: data-generator
+    spec:
+      containers:
+        - name: data-generator
+          image: data-generator:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8081
+---
+# k8s/data-generator/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-generator
+spec:
+  selector:
+    app: data-generator
+  ports:
+    - port: 8081
+      targetPort: 8081

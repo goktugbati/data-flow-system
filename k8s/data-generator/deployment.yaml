@@ -1,0 +1,26 @@
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-generator
+  template:
+    metadata:
+      labels:
+        app: data-generator
+    spec:
+      containers:
+        - name: data-generator
+          image: data-generator:latest
+          ports:
+            - containerPort: 8081
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10

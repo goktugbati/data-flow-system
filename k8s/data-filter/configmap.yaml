@@ -1,0 +1,43 @@
+# k8s/data-filter/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-filter-config
+data:
+  application.yml: |
+    server:
+      port: 8082
+
+    spring:
+      application:
+        name: data-filter-service
+      rabbitmq:
+        host: rabbitmq
+        port: 5672
+        username: guest
+        password: guest
+        publisher-confirm-type: simple
+        publisher-returns: true
+        cache:
+          connection:
+            mode: connection
+          channel:
+            size: 25
+
+    websocket:
+      generator:
+        url: ws://data-generator:8081/ws/data
+
+    storage:
+      base-path: /data/dataflow
+      paths:
+        filtered: ${storage.base-path}/filtered
+        archive: ${storage.base-path}/archive
+        temp: ${storage.base-path}/temp
+      retention:
+        days: 30
+
+    logging:
+      level:
+        com.dataflow.dataflowsystem.filter: DEBUG
+        org.springframework.amqp: DEBUG

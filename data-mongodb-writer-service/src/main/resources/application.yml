@@ -1,0 +1,22 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: data-generator-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/dataflow}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
+rabbitmq:
+  queue-name: ${RABBITMQ_QUEUE_NAME:mongodb-queue}
+  exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
+
+logging:
+  level:
+    com.dataflow.dataflowsystem.mongodb: DEBUG

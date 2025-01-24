@@ -1,0 +1,89 @@
+services:
+  data-generator:
+    build:
+      context: ./data-generator-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    networks:
+      - dataflow-network
+
+  data-filter:
+    build:
+      context: ./data-filter-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      data-generator:
+        condition: service_started
+    networks:
+      - dataflow-network
+    volumes:
+      - dataflow:/data/dataflow
+
+  data-mongodb-writer:
+      build:
+        context: ./data-mongodb-writer-service
+        dockerfile: Dockerfile
+      environment:
+        - SPRING_AMQP_DESERIALIZATION_TRUST_ALL=true
+      ports:
+        - "8084:8084"
+      depends_on:
+        - rabbitmq
+        - mongodb
+        - data-filter
+      networks:
+        - dataflow-network
+
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_DB=dataflow
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dataflow-network
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - dataflow-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_VHOST=/
+    networks:
+      - dataflow-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+networks:
+  dataflow-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  dataflow:

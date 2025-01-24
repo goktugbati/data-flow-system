@@ -1,0 +1,44 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: data-filter-service
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: simple   # Corresponds to ConfirmType.SIMPLE
+    publisher-returns: true          # Enables publisher returns
+    cache:
+      connection:
+        mode: connection
+      channel:
+        size: 25
+    dynamic: true
+
+websocket:
+  generator:
+    url: ws://data-generator:8081/ws/data
+
+# RabbitMQ configuration
+rabbitmq:
+  exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
+  database-queue: database-queue
+  mongodb-queue: mongodb-queue
+
+# File storage configuration
+storage:
+  base-path: /data/dataflow
+  paths:
+    filtered: ${storage.base-path}/filtered
+    archive: ${storage.base-path}/archive
+    temp: ${storage.base-path}/temp
+  retention:
+    days: 30 # Number of days to keep archived files
+
+logging:
+  level:
+    com.dataflow.dataflowsystem.filter: DEBUG
+    org.springframework.amqp: DEBUG

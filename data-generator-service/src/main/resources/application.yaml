@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: data-generator-service
+
+server:
+  port: 8081
+
+logging:
+  level:
+    com.dataflow.dataflowsystem.generator: DEBUG

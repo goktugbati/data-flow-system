@@ -1,0 +1,18 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.dataflow'
+version = '1.0-SNAPSHOT'
+
+dependencies {
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor('org.projectlombok:lombok')
+}
+java {
+    withSourcesJar()
+}
+
+tasks.named('bootJar') {
+    enabled = false
+}
