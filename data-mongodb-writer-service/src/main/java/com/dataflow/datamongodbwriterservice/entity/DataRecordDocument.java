@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "data_records")
@@ -19,7 +20,7 @@ public class DataRecordDocument {
     private Long timestamp;
     private Integer randomValue;
     private String hashValue;
-    private List<DataRecordDocument> nestedRecords;
+    private List<DataRecordDocument> nestedRecords = new ArrayList<>();
 
     public static DataRecordDocument fromDataRecord(DataRecordMessage record) {
         DataRecordDocument doc = new DataRecordDocument();

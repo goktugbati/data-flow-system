@@ -31,7 +31,6 @@ public class WebSocketClientService {
         WebSocketClient client = new StandardWebSocketClient();
         int retryCount = 0;
         int maxRetries = 5;
-
         while (retryCount < maxRetries) {
             try {
                 log.info("Attempting to connect to WebSocket at: {} (Attempt {}/{})", serverUri, retryCount + 1, maxRetries);

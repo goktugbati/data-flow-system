@@ -9,8 +9,8 @@ spring:
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
-    publisher-confirm-type: simple   # Corresponds to ConfirmType.SIMPLE
-    publisher-returns: true          # Enables publisher returns
+    publisher-confirm-type: simple
+    publisher-returns: true
     cache:
       connection:
         mode: connection
@@ -27,6 +27,7 @@ rabbitmq:
   exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
   database-queue: database-queue
   mongodb-queue: mongodb-queue
+  routing-key: common.event
 
 # File storage configuration
 storage:
