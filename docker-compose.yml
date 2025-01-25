@@ -29,12 +29,34 @@ services:
         context: ./data-mongodb-writer-service
         dockerfile: Dockerfile
       environment:
-        - SPRING_AMQP_DESERIALIZATION_TRUST_ALL=true
+        SPRING_AMQP_DESERIALIZATION_TRUST_ALL: true
       ports:
         - "8084:8084"
       depends_on:
         - rabbitmq
         - mongodb
+        - data-filter
+      networks:
+        - dataflow-network
+
+  data-db-writer:
+      build:
+        context: ./data-db-writer-service
+        dockerfile: Dockerfile
+      ports:
+        - "8085:8085"
+      environment:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dataflow
+        SPRING_DATASOURCE_USERNAME: postgres
+        SPRING_DATASOURCE_PASSWORD: postgres
+        SPRING_RABBITMQ_HOST: rabbitmq
+        SPRING_RABBITMQ_PORT: 5672
+        SPRING_RABBITMQ_USERNAME: guest
+        SPRING_RABBITMQ_PASSWORD: guest
+        SPRING_AMQP_DESERIALIZATION_TRUST_ALL: true
+      depends_on:
+        - rabbitmq
+        - postgres
         - data-filter
       networks:
         - dataflow-network

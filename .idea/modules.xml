@@ -2,10 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/data-filter-service/data-flow-system.data-filter-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/data-filter-service/data-flow-system.data-filter-service.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/data-generator-service/data-flow-system.data-generator-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/data-generator-service/data-flow-system.data-generator-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/data-db-writer-service/data-flow-system.data-db-writer-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/data-db-writer-service/data-flow-system.data-db-writer-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/data-models/data-flow-system.data-models.main.iml" filepath="$PROJECT_DIR$/.idea/modules/data-models/data-flow-system.data-models.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/data-mongodb-writer-service/data-flow-system.data-mongodb-writer-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/data-mongodb-writer-service/data-flow-system.data-mongodb-writer-service.main.iml" />
     </modules>
   </component>
 </project>

@@ -1,8 +1,8 @@
 package com.dataflow.dataflowsystem.filter.service;
 
 
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 
 public interface DataProcessor {
-    void processData(DataRecord record);
+    void processData(DataRecordMessage record);
 }

@@ -1,6 +1,6 @@
 package com.dataflow.dataflowsystem.filter.service;
 
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -74,7 +74,7 @@ public class WebSocketClientService {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 log.info("Received message: {}", message.getPayload());
-                DataRecord record = mapper.readValue(message.getPayload(), DataRecord.class);
+                DataRecordMessage record = mapper.readValue(message.getPayload(), DataRecordMessage.class);
                 log.info("Received message: {}", record);
                 dataProcessor.processData(record);
             } catch (Exception e) {

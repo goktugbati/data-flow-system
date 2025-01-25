@@ -1,6 +1,6 @@
 package com.dataflow.dataflowsystem.generator.handler;
 
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +38,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
         sessions.remove(session);
     }
 
-    public void sendMessage(DataRecord record) throws JsonProcessingException {
+    public void sendMessage(DataRecordMessage record) throws JsonProcessingException {
         String message = objectMapper.writeValueAsString(record);
         sessions.removeIf(session -> {
             if (!session.isOpen()) {

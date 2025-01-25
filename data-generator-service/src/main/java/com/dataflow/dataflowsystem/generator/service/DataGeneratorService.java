@@ -1,7 +1,7 @@
 package com.dataflow.dataflowsystem.generator.service;
 
 import com.dataflow.dataflowsystem.generator.handler.WebSocketHandler;
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -22,7 +22,7 @@ public class DataGeneratorService {
     @Scheduled(fixedRate = 200)
     public void generateAndSendData() {
         try {
-            DataRecord record = generateData();
+            DataRecordMessage record = generateData();
             webSocketHandler.sendMessage(record);
             log.info("Generated and sent data: {}", record);
         } catch (Exception e) {
@@ -30,11 +30,11 @@ public class DataGeneratorService {
         }
     }
 
-    public DataRecord generateData() {
+    public DataRecordMessage generateData() {
         Long timestamp = System.currentTimeMillis();
         Integer randomValue = random.nextInt(101);
         String hashValue = generateHashValue(timestamp, randomValue);
-        return new DataRecord(timestamp, randomValue, hashValue);
+        return new DataRecordMessage(timestamp, randomValue, hashValue);
     }
 
     public String generateHashValue(Long timestamp, Integer value) {

@@ -1,6 +1,6 @@
 package com.dataflow.dataflowsystem.filter.service;
 
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +16,7 @@ public class DataFilterService implements DataProcessor {
     }
 
     @Override
-    public void processData(DataRecord record) {
+    public void processData(DataRecordMessage record) {
         try {
             if (record.getRandomValue() > 90) {
                 messageQueue.send(record);

@@ -1,13 +1,12 @@
 package com.dataflow.datamongodbwriterservice.entity;
 
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "data_records")
@@ -22,8 +21,11 @@ public class DataRecordDocument {
     private String hashValue;
     private List<DataRecordDocument> nestedRecords;
 
-    public static DataRecordDocument fromDataRecord(DataRecord record) {
-        return new DataRecordDocument(null, record.getTimestamp(),
-                record.getRandomValue(), record.getHashValue(), new ArrayList<>());
+    public static DataRecordDocument fromDataRecord(DataRecordMessage record) {
+        DataRecordDocument doc = new DataRecordDocument();
+        doc.setTimestamp(record.getTimestamp());
+        doc.setRandomValue(record.getRandomValue());
+        doc.setHashValue(record.getHashValue());
+        return doc;
     }
 }

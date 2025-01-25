@@ -12,6 +12,7 @@
         <module name="data-flow-system.data-filter-service.main" />
         <module name="data-flow-system.data-models.main" />
         <module name="data-flow-system.data-mongodb-writer-service.main" />
+        <module name="data-flow-system.data-db-writer-service.main" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="17">

@@ -1,7 +1,7 @@
 package com.dataflow.dataflowsystem.generator.service;
 
 import com.dataflow.dataflowsystem.generator.handler.WebSocketHandler;
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,12 +30,12 @@ public class DataGeneratorServiceTest {
 
     @Test
     void whenGenerateData_thenDataRecordHasCorrectFormat() throws Exception {
-        ArgumentCaptor<DataRecord> recordCaptor = ArgumentCaptor.forClass(DataRecord.class);
+        ArgumentCaptor<DataRecordMessage> recordCaptor = ArgumentCaptor.forClass(DataRecordMessage.class);
 
         dataGeneratorService.generateAndSendData();
 
         verify(webSocketHandler).sendMessage(recordCaptor.capture());
-        DataRecord capturedRecord = recordCaptor.getValue();
+        DataRecordMessage capturedRecord = recordCaptor.getValue();
 
         assertNotNull(capturedRecord);
         assertNotNull(capturedRecord.getTimestamp());
@@ -48,7 +48,7 @@ public class DataGeneratorServiceTest {
     void whenWebSocketHandlerThrowsException_thenHandleGracefully() throws Exception {
         doThrow(new RuntimeException("WebSocket error"))
                 .when(webSocketHandler)
-                .sendMessage(any(DataRecord.class));
+                .sendMessage(any(DataRecordMessage.class));
 
         assertDoesNotThrow(() -> dataGeneratorService.generateAndSendData());
     }
@@ -91,7 +91,7 @@ public class DataGeneratorServiceTest {
 
         // Generate multiple values to check distribution
         for (int i = 0; i < iterations; i++) {
-            ArgumentCaptor<DataRecord> recordCaptor = ArgumentCaptor.forClass(DataRecord.class);
+            ArgumentCaptor<DataRecordMessage> recordCaptor = ArgumentCaptor.forClass(DataRecordMessage.class);
             dataGeneratorService.generateAndSendData();
             verify(webSocketHandler, times(i + 1)).sendMessage(recordCaptor.capture());
             generatedValues.add(recordCaptor.getValue().getRandomValue());
@@ -104,14 +104,14 @@ public class DataGeneratorServiceTest {
 
     @Test
     void testTimestampIsRecent() throws Exception {
-        ArgumentCaptor<DataRecord> recordCaptor = ArgumentCaptor.forClass(DataRecord.class);
+        ArgumentCaptor<DataRecordMessage> recordCaptor = ArgumentCaptor.forClass(DataRecordMessage.class);
 
         long beforeGeneration = System.currentTimeMillis();
         dataGeneratorService.generateAndSendData();
         long afterGeneration = System.currentTimeMillis();
 
         verify(webSocketHandler).sendMessage(recordCaptor.capture());
-        DataRecord record = recordCaptor.getValue();
+        DataRecordMessage record = recordCaptor.getValue();
 
         assertTrue(record.getTimestamp() >= beforeGeneration);
         assertTrue(record.getTimestamp() <= afterGeneration);
@@ -120,10 +120,10 @@ public class DataGeneratorServiceTest {
     @Test
     void testMultipleGenerations() throws Exception {
         int generations = 5;
-        List<DataRecord> records = new ArrayList<>();
+        List<DataRecordMessage> records = new ArrayList<>();
 
         for (int i = 0; i < generations; i++) {
-            ArgumentCaptor<DataRecord> recordCaptor = ArgumentCaptor.forClass(DataRecord.class);
+            ArgumentCaptor<DataRecordMessage> recordCaptor = ArgumentCaptor.forClass(DataRecordMessage.class);
             dataGeneratorService.generateAndSendData();
             verify(webSocketHandler, times(i + 1)).sendMessage(recordCaptor.capture());
             records.add(recordCaptor.getValue());
@@ -131,12 +131,12 @@ public class DataGeneratorServiceTest {
         }
 
         Set<Long> timestamps = records.stream()
-                .map(DataRecord::getTimestamp)
+                .map(DataRecordMessage::getTimestamp)
                 .collect(Collectors.toSet());
         assertEquals(generations, timestamps.size(), "Each generation should have unique timestamp");
 
         Set<String> hashes = records.stream()
-                .map(DataRecord::getHashValue)
+                .map(DataRecordMessage::getHashValue)
                 .collect(Collectors.toSet());
         assertTrue(hashes.size() > 1, "Should generate different hash values");
     }

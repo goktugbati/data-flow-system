@@ -9,7 +9,7 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class DataRecord implements Serializable {
+public class DataRecordMessage implements Serializable {
     private Long timestamp;
     private Integer randomValue;
     private String hashValue;

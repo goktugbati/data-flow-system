@@ -1,7 +1,7 @@
 package com.dataflow.dataflowsystem.filter.service;
 
 import com.dataflow.dataflowsystem.filter.config.FileProperties;
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +19,7 @@ public class FileWriterService {
         this.properties = properties;
     }
 
-    public void write(DataRecord record) {
+    public void write(DataRecordMessage record) {
         if (record == null) {
             log.error("Cannot write null record");
             return;
@@ -45,7 +45,7 @@ public class FileWriterService {
         writeToFile(filePath, record);
     }
 
-    private void writeToFile(String filePath, DataRecord record) {
+    private void writeToFile(String filePath, DataRecordMessage record) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, true))) {
             String line = String.format("%d,%d,%s%n",
                     record.getTimestamp(),

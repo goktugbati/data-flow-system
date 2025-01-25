@@ -1,6 +1,6 @@
 package com.dataflow.dataflowsystem.filter.service;
 
-import com.dataflow.model.DataRecord;
+import com.dataflow.model.DataRecordMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,7 @@ public class MessageQueueService {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    public void send(DataRecord record) {
+    public void send(DataRecordMessage record) {
         try {
             log.info("Attempting to send message to exchange: {} with routing key: {}",
                     EXCHANGE_NAME, ROUTING_KEY);
