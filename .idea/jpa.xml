@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="JpaBuddyIdeaProjectConfig" migrateDefaultValues="false">
-    <option name="migrateDefaultValues" value="false" />
-    <option name="reLastEntityCreationPackage" value="data-mongodb-writer-service/src/main/java/com/dataflow/dataflowsystem/generator" />
-    <option name="reverseEngineeringLastDbConnectionId" value="243ca379-6b95-4ecf-bef2-7c6f74ef1687" />
-  </component>
-</project>
