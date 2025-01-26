@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface DataRecordMongoRepository extends MongoRepository<DataRecordDocument, String> {
     Optional<DataRecordDocument> findFirstByOrderByTimestampDesc();
+    boolean existsById(String hash);
 }

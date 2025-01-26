@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.util.Random;
+import java.util.UUID;
 
 @Service
 @Slf4j
