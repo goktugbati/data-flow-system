@@ -2,9 +2,22 @@ spring:
   application:
     name: data-generator-service
 
+websocket:
+  max-retry-attempts: 3
+  cleanup-interval-ms: 60000
+
 server:
   port: 8081
 
 logging:
   level:
     com.dataflow.dataflowsystem.generator: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics, prometheus
+  endpoint:
+    prometheus:
+      enabled: true

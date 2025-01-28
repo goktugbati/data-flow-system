@@ -4,6 +4,20 @@ server:
 spring:
   application:
     name: data-database-writer-service
+  batch:
+    processing:
+      interval: 5000
+  cache:
+    type: redis
+    redis:
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/dataflow
     username: ${POSTGRES_USER:postgres}

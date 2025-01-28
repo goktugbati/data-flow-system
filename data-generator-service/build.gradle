@@ -29,6 +29,8 @@ dependencies {
 	implementation("org.projectlombok:lombok")
 	implementation("commons-codec:commons-codec")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation 'io.micrometer:micrometer-core'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
 	implementation project(':data-models')
 	annotationProcessor("org.projectlombok:lombok")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")

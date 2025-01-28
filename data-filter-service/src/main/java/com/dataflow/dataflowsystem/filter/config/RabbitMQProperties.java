@@ -16,4 +16,5 @@ public class RabbitMQProperties {
     private String databaseQueue;
     private String mongodbQueue;
     private String routingKey;
+    private int maxRetries;
 }

@@ -21,17 +21,36 @@ public class RabbitMQConfig {
 
     @Bean
     public RabbitAdmin rabbitAdmin(CachingConnectionFactory connectionFactory) {
-        Queue queue1 = new Queue(rabbitMQProperties.getDatabaseQueue(), true);
-        Queue queue2 = new Queue(rabbitMQProperties.getMongodbQueue(), true);
-        TopicExchange topicExchange = new TopicExchange(rabbitMQProperties.getExchangeName());
         RabbitAdmin rabbitAdmin = new RabbitAdmin(connectionFactory);
         rabbitAdmin.setAutoStartup(true);
+
+        Queue dbQueue = createQueueWithDLQ(rabbitMQProperties.getDatabaseQueue());
+        Queue mongoQueue = createQueueWithDLQ(rabbitMQProperties.getMongodbQueue());
+
+        Queue dbDlq = new Queue(rabbitMQProperties.getDatabaseQueue() + ".dlq", true);
+        Queue mongoDlq = new Queue(rabbitMQProperties.getMongodbQueue() + ".dlq", true);
+
+        TopicExchange topicExchange = new TopicExchange(rabbitMQProperties.getExchangeName());
+
         rabbitAdmin.declareExchange(topicExchange);
-        rabbitAdmin.declareQueue(queue1);
-        rabbitAdmin.declareQueue(queue2);
-        rabbitAdmin.declareBinding(BindingBuilder.bind(queue1).to(topicExchange).with(rabbitMQProperties.getRoutingKey()));
-        rabbitAdmin.declareBinding(BindingBuilder.bind(queue2).to(topicExchange).with(rabbitMQProperties.getRoutingKey()));
+        rabbitAdmin.declareQueue(dbQueue);
+        rabbitAdmin.declareQueue(mongoQueue);
+        rabbitAdmin.declareQueue(dbDlq);
+        rabbitAdmin.declareQueue(mongoDlq);
+
+        rabbitAdmin.declareBinding(BindingBuilder.bind(dbQueue).to(topicExchange).with(rabbitMQProperties.getRoutingKey()));
+        rabbitAdmin.declareBinding(BindingBuilder.bind(mongoQueue).to(topicExchange).with(rabbitMQProperties.getRoutingKey()));
+
+        rabbitAdmin.declareBinding(BindingBuilder.bind(dbDlq).to(topicExchange).with(rabbitMQProperties.getRoutingKey() + ".dlq"));
+        rabbitAdmin.declareBinding(BindingBuilder.bind(mongoDlq).to(topicExchange).with(rabbitMQProperties.getRoutingKey() + ".dlq"));
+
         return rabbitAdmin;
     }
 
+    private Queue createQueueWithDLQ(String queueName) {
+        return QueueBuilder.durable(queueName)
+                .withArgument("x-dead-letter-exchange", rabbitMQProperties.getExchangeName())
+                .withArgument("x-dead-letter-routing-key", queueName + ".dlq")
+                .build();
+    }
 }

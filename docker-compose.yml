@@ -54,10 +54,13 @@ services:
         SPRING_RABBITMQ_USERNAME: guest
         SPRING_RABBITMQ_PASSWORD: guest
         SPRING_AMQP_DESERIALIZATION_TRUST_ALL: true
+        SPRING_REDIS_HOST: redis
+        SPRING_REDIS_PORT: 6379
       depends_on:
         - rabbitmq
         - postgres
         - data-filter
+        - redis
       networks:
         - dataflow-network
 
@@ -100,6 +103,34 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - dataflow-network
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - dataflow-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - dataflow-network
+    depends_on:
+      - prometheus
 
 networks:
   dataflow-network:

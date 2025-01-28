@@ -13,6 +13,7 @@ public class FileProperties {
     private String basePath;
     private Paths paths;
     private Retention retention;
+    private long flushIntervalMs;
 
     @Getter
     @Setter

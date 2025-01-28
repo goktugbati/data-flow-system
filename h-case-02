@@ -1,7 +1,7 @@
 1. Random veri üreten bir kaynak uygulama yazılacak:
-	Bu verinin içinde 
-		timestamp, 
-		0-100 arasında random integer, 
+	Bu verinin içinde
+		timestamp,
+		0-100 arasında random integer,
 		üstteki iki verinin md5 hash'inin son 2 karakteri
 	Saniyede 5 değer üretecek.
 	Üretilen değerler bir socket'e yazılacak.

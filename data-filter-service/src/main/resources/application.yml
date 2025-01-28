@@ -21,6 +21,8 @@ spring:
 websocket:
   generator:
     url: ws://data-generator:8081/ws/data
+    max-retries: 5
+    retry-delay-ms: 2000
 
 # RabbitMQ configuration
 rabbitmq:
@@ -37,7 +39,8 @@ storage:
     archive: ${storage.base-path}/archive
     temp: ${storage.base-path}/temp
   retention:
-    days: 30 # Number of days to keep archived files
+    days: 30
+  flush-interval-ms: 5000
 
 logging:
   level:

@@ -1,12 +1,16 @@
 package com.dataflow.dataflowsystem.generator.service;
 
+import com.dataflow.dataflowsystem.generator.config.WebSocketProperties;
 import com.dataflow.dataflowsystem.generator.handler.WebSocketHandler;
 import com.dataflow.model.DataRecordMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -24,10 +28,35 @@ public class DataGeneratorServiceTest {
 
     @Mock
     private WebSocketHandler webSocketHandler;
+    @Mock
+    private WebSocketProperties webSocketProperties;
+    @Mock
+    private MeterRegistry meterRegistry;
+    @Mock
+    private Timer timer;
 
-    @InjectMocks
     private DataGeneratorService dataGeneratorService;
 
+    @BeforeEach
+    void setup() {
+        lenient().when(webSocketProperties.getMaxRetryAttempts()).thenReturn(3);
+        lenient().when(meterRegistry.timer("data.generator.time")).thenReturn(timer);
+
+        Counter successCounter = mock(Counter.class);
+        Counter retriesCounter = mock(Counter.class);
+        Counter failuresCounter = mock(Counter.class);
+
+        lenient().when(meterRegistry.counter("data.generator.success")).thenReturn(successCounter);
+        lenient().when(meterRegistry.counter("data.generator.retries")).thenReturn(retriesCounter);
+        lenient().when(meterRegistry.counter("data.generator.failures")).thenReturn(failuresCounter);
+
+        lenient().doAnswer(inv -> {
+            ((Runnable) inv.getArgument(0)).run();
+            return null;
+        }).when(timer).record(any(Runnable.class));
+
+        dataGeneratorService = new DataGeneratorService(webSocketHandler, webSocketProperties, meterRegistry);
+    }
     @Test
     void whenGenerateData_thenDataRecordHasCorrectFormat() throws Exception {
         ArgumentCaptor<DataRecordMessage> recordCaptor = ArgumentCaptor.forClass(DataRecordMessage.class);
@@ -139,5 +168,14 @@ public class DataGeneratorServiceTest {
                 .map(DataRecordMessage::getHashValue)
                 .collect(Collectors.toSet());
         assertTrue(hashes.size() > 1, "Should generate different hash values");
+    }
+
+    @Test
+    void testRetryLogic() throws JsonProcessingException {
+        doThrow(new RuntimeException("WebSocket error"))
+                .when(webSocketHandler)
+                .sendMessage(any(DataRecordMessage.class));
+        dataGeneratorService.generateAndSendData();
+        verify(webSocketHandler, times(3)).sendMessage(any(DataRecordMessage.class));
     }
 }
