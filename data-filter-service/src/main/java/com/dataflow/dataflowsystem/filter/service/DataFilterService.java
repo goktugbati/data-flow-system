@@ -23,7 +23,7 @@ public class DataFilterService implements DataProcessor {
                 log.info("Sent to MQ: {}", record);
             } else {
                 fileWriter.write(record);
-                log.info("Written to file: {}", record);
+                log.info("Written to buffer: {}", record);
             }
         } catch (Exception e) {
             log.error("Error processing record {}: {}", record, e.getMessage());

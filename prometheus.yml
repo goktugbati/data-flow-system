@@ -2,7 +2,32 @@ global:
   scrape_interval: 5s
 
 scrape_configs:
-  - job_name: "data-generator-service"
+  - job_name: "data-services"
     metrics_path: "/actuator/prometheus"
     static_configs:
-      - targets: ["host.docker.internal:8081"]  # Replace with your container/service endpoint
+      - targets:
+          - "data-generator:8081"  # Using service name instead of host.docker.internal
+          - "data-filter:8082"     # Using service name instead of host.docker.internal
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '.*:8081'
+        target_label: service
+        replacement: 'data-generator'
+      - source_labels: [__address__]
+        regex: '.*:8082'
+        target_label: service
+        replacement: 'data-filter'
+
+  - job_name: "circuit-breakers"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["data-filter:8082"]  # Using service name
+    metric_relabel_configs:
+      - source_labels: [name]
+        regex: 'resilience4j_circuitbreaker.*'
+        action: keep
+
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq:15692"]    # Using service name
+    metrics_path: "/metrics"

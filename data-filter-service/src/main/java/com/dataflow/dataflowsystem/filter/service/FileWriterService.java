@@ -3,6 +3,7 @@ package com.dataflow.dataflowsystem.filter.service;
 import com.dataflow.dataflowsystem.filter.config.FileProperties;
 import com.dataflow.model.DataRecordMessage;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class FileWriterService {
     private final FileProperties properties;
+    @Getter
     private final Map<String, BufferedWriter> writers = new ConcurrentHashMap<>();
     private final String instanceId;
 
@@ -94,14 +96,14 @@ public class FileWriterService {
             BufferedWriter writer = writers.computeIfAbsent(filePath, this::createWriter);
             synchronized (writer) {
                 writer.write(formatRecord(record));
-                log.info("Successfully wrote record to file: {}", filePath);
+                log.info("Successfully wrote record to buffer: {}", filePath);
             }
         } catch (Exception e) {
             log.error("Error writing to file {}: {}", filePath, e.getMessage());
         }
     }
 
-    private BufferedWriter createWriter(String filePath) {
+    public BufferedWriter createWriter(String filePath) {
         try {
             return new BufferedWriter(new FileWriter(filePath, true));
         } catch (IOException e) {
@@ -120,4 +122,5 @@ public class FileWriterService {
         String directoryPath = properties.getPaths().getFiltered();
         return String.format("%s/%d-%s.txt", directoryPath, record.getTimestamp(), instanceId);
     }
+
 }

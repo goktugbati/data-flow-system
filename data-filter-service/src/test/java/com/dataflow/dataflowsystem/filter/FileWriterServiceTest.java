@@ -9,8 +9,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -19,15 +19,16 @@ import java.util.Map;
 
 import java.lang.reflect.Field;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class FileWriterServiceTest {
 
     @Mock
     private FileProperties fileProperties;
+
+    @Mock
+    private FileProperties.Paths paths;
 
     @InjectMocks
     private FileWriterService fileWriterService;
@@ -36,22 +37,18 @@ class FileWriterServiceTest {
 
     @BeforeEach
     void setup() throws Exception {
-        MockitoAnnotations.openMocks(this);
+        paths = new FileProperties.Paths();
+        ReflectionTestUtils.setField(paths, "filtered", "/tmp/test-directory");
 
-        lenient().when(fileProperties.getFlushIntervalMs()).thenReturn(60000L);
-
-        FileProperties.Paths paths = mock(FileProperties.Paths.class);
-        lenient().when(paths.getFiltered()).thenReturn("/tmp/test-directory");
         lenient().when(fileProperties.getPaths()).thenReturn(paths);
+        lenient().when(fileProperties.getFlushIntervalMs()).thenReturn(60000L);
 
         BufferedWriter mockWriter1 = mock(BufferedWriter.class);
         BufferedWriter mockWriter2 = mock(BufferedWriter.class);
         mockWriters.put("file1.txt", mockWriter1);
         mockWriters.put("file2.txt", mockWriter2);
 
-        Field writersField = FileWriterService.class.getDeclaredField("writers");
-        writersField.setAccessible(true);
-        writersField.set(fileWriterService, mockWriters);
+        ReflectionTestUtils.setField(fileWriterService, "writers", mockWriters);
     }
 
     @Test
@@ -80,23 +77,42 @@ class FileWriterServiceTest {
         mockWriters.put("fileWithError.txt", mockWriter);
         fileWriterService.flushAllBuffers();
 
-        Mockito.verify(mockWriter, Mockito.times(1)).flush(); // Verify flush was attempted
+        Mockito.verify(mockWriter, Mockito.times(1)).flush();
     }
 
     @Test
     void testWriteCreatesBufferedWriter() throws Exception {
+        // Arrange
+        String testDirectory = "/tmp/test-directory";
         long testTimestamp = System.currentTimeMillis();
+        String instanceId = "TestInstance";
+        String expectedFilePath = String.format("%s/%d-%s.txt", testDirectory, testTimestamp, instanceId);
+
+        ReflectionTestUtils.setField(fileWriterService, "instanceId", instanceId);
+
+        FileWriterService spyService = spy(fileWriterService);
+        BufferedWriter mockWriter = mock(BufferedWriter.class);
+        doReturn(mockWriter).when(spyService).createWriter(anyString());
+
         DataRecordMessage record = new DataRecordMessage();
         record.setTimestamp(testTimestamp);
+        record.setRandomValue(50);
+        record.setHashValue("test-hash");
 
-        fileWriterService.write(record);
+        spyService.write(record);
 
-        String expectedFilePath = fileWriterService.generateFilePath(record);
+        verify(spyService).createWriter(expectedFilePath);
+        verify(mockWriter).write(contains(String.format("%d,%d,%s",
+                testTimestamp,
+                record.getRandomValue(),
+                record.getHashValue()
+        )));
+    }
 
-        Field writersField = FileWriterService.class.getDeclaredField("writers");
-        writersField.setAccessible(true);
-        Map<String, BufferedWriter> writers = (Map<String, BufferedWriter>) writersField.get(fileWriterService);
-
-        assertTrue(writers.containsKey(expectedFilePath), "Expected writer for file path: " + expectedFilePath);
+    @Test
+    void testWriteHandlesNullRecord() {
+        FileWriterService spyService = spy(fileWriterService);
+        spyService.write(null);
+        verify(spyService, never()).createWriter(anyString());
     }
 }
