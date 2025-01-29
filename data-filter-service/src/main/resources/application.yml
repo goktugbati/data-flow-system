@@ -73,6 +73,11 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    circuitbreakers:    # This is correct - it is 'circuitbreakers' plural
+      enabled: true  # Circuit breaker health check
+    rabbit:
+      enabled: true  # RabbitMQ health check
   metrics:
     tags:
       application: ${spring.application.name}
