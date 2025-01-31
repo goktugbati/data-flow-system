@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: data-filter-service
+
+  # RabbitMQ Connection Configuration
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
@@ -18,20 +20,21 @@ spring:
         size: 25
     dynamic: true
 
+# WebSocket Configuration
 websocket:
   generator:
     url: ws://data-generator:8081/ws/data
     max-retries: 5
     retry-delay-ms: 2000
 
-# RabbitMQ configuration
+# RabbitMQ Queue Configuration
 rabbitmq:
   exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
   database-queue: database-queue
   mongodb-queue: mongodb-queue
   routing-key: common.event
 
-# File storage configuration
+# File Storage Configuration
 storage:
   base-path: /data/dataflow
   paths:
@@ -42,11 +45,7 @@ storage:
     days: 30
   flush-interval-ms: 5000
 
-logging:
-  level:
-    com.dataflow.dataflowsystem.filter: DEBUG
-    org.springframework.amqp: DEBUG
-
+# Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
     metrics:
@@ -65,6 +64,7 @@ resilience4j:
       messageQueueCircuitBreaker:
         baseConfig: default
 
+# Monitoring Configuration
 management:
   endpoints:
     web:
@@ -74,10 +74,10 @@ management:
     health:
       show-details: always
   health:
-    circuitbreakers:    # This is correct - it is 'circuitbreakers' plural
-      enabled: true  # Circuit breaker health check
+    circuitbreakers:
+      enabled: true
     rabbit:
-      enabled: true  # RabbitMQ health check
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
@@ -85,3 +85,9 @@ management:
       percentiles-histogram:
         http.server.requests: true
         resilience4j.circuitbreaker.calls: true
+
+# Logging Configuration
+logging:
+  level:
+    com.dataflow.dataflowsystem.filter: DEBUG
+    org.springframework.amqp: DEBUG

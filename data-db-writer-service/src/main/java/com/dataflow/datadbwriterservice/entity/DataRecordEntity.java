@@ -10,7 +10,9 @@ import java.time.Instant;
 
 @Data
 @Entity
-@Table(name = "data_records")
+@Table(name = "data_records", indexes = {
+        @Index(name = "idx_timestamp", columnList = "timestamp")
+})
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

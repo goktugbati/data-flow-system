@@ -4,9 +4,8 @@ server:
 spring:
   application:
     name: data-database-writer-service
-  batch:
-    processing:
-      interval: 5000
+
+  # Redis Configuration
   cache:
     type: redis
     redis:
@@ -15,31 +14,89 @@ spring:
       timeout: 2000ms
       lettuce:
         pool:
-          max-active: 10
-          max-idle: 5
-          min-idle: 1
+          max-active: 50
+          max-idle: 20
+          min-idle: 5
+          time-between-eviction-runs: 30s
+
+  # Database Configuration
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/dataflow
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: create-drop
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc.batch_size: 50
+        order_inserts: true
+
+  # RabbitMQ Configuration
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
+          max-interval: 10000
+          multiplier: 2
+        missing-queues-fatal: false
+        default-requeue-rejected: true
+        retry-operations-interval: 1000
 
+  # Batch Processing
+  batch:
+    processing:
+      interval: 5000
+
+# RabbitMQ Queue Configuration
 rabbitmq:
   queue-name: ${RABBITMQ_QUEUE_NAME:database-queue}
   exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
 
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+
+# Monitoring Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+    rabbit:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        resilience4j.circuitbreaker.calls: true
+
+# Logging Configuration
 logging:
   level:
     com.dataflow: DEBUG
-

@@ -14,12 +14,16 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
 public class FileWriterService {
+    private static final String DATE_FORMAT = "yyyy-MM-dd-HH";
     private final FileProperties properties;
     @Getter
     private final Map<String, BufferedWriter> writers = new ConcurrentHashMap<>();
@@ -35,6 +39,15 @@ public class FileWriterService {
         }
         this.instanceId = System.getenv().getOrDefault("INSTANCE_ID", hostname);
         log.info("FileWriterService initialized for instance: {}", this.instanceId);
+        createDirectories();
+    }
+
+    private void createDirectories() {
+        String directoryPath = properties.getPaths().getFiltered();
+        File directory = new File(directoryPath);
+        if (!directory.exists() && !directory.mkdirs()) {
+            log.error("Failed to create directory: {}", directoryPath);
+        }
     }
 
     @PostConstruct
@@ -46,15 +59,38 @@ public class FileWriterService {
         }));
     }
 
+    @Scheduled(fixedRate = 60000) // Every minute
+    public void cleanupOldWriters() {
+        String currentTimeWindow = DateTimeFormatter.ofPattern(DATE_FORMAT)
+                .format(Instant.now().atZone(ZoneId.systemDefault()));
+
+        writers.entrySet().removeIf(entry -> {
+            if (!entry.getKey().contains(currentTimeWindow)) {
+                try {
+                    entry.getValue().close();
+                    log.info("Closed writer for old file: {}", entry.getKey());
+                    return true;
+                } catch (IOException e) {
+                    log.error("Error closing writer for {}: {}", entry.getKey(), e.getMessage());
+                }
+            }
+            return false;
+        });
+    }
+
     @Scheduled(fixedRate = 5000)
     public void periodicFlush() {
-        log.info("Running periodic buffer flush");
-        flushAllBuffers();
+        try {
+            flushAllBuffers();
+        } catch (Exception e) {
+            log.error("Error during periodic flush: {}", e.getMessage(), e);
+        }
     }
 
     public synchronized void closeAllWriters() {
         writers.values().forEach(writer -> {
             try {
+                writer.flush();
                 writer.close();
             } catch (IOException e) {
                 log.error("Error closing writer: {}", e.getMessage());
@@ -68,10 +104,11 @@ public class FileWriterService {
             try {
                 synchronized (writer) {
                     writer.flush();
-                    log.info("Flushed buffer for file: {}", filePath);
+                    log.debug("Flushed buffer for file: {}", filePath);
                 }
             } catch (IOException e) {
                 log.error("Error flushing buffer for file {}: {}", filePath, e.getMessage());
+                writers.remove(filePath);
             }
         });
     }
@@ -82,30 +119,35 @@ public class FileWriterService {
             return;
         }
 
-        String directoryPath = properties.getPaths().getFiltered();
-        File directory = new File(directoryPath);
-
-        if (!directory.exists() && !directory.mkdirs()) {
-            log.error("Failed to create directory: {}", directoryPath);
-            return;
-        }
-
         String filePath = generateFilePath(record);
-
+        BufferedWriter writer = null;
         try {
-            BufferedWriter writer = writers.computeIfAbsent(filePath, this::createWriter);
+            writer = writers.computeIfAbsent(filePath, this::createWriter);
             synchronized (writer) {
                 writer.write(formatRecord(record));
-                log.info("Successfully wrote record to buffer: {}", filePath);
+                log.debug("Successfully wrote record to buffer: {}", filePath);
             }
         } catch (Exception e) {
             log.error("Error writing to file {}: {}", filePath, e.getMessage());
+            if (writer != null) {
+                writers.remove(filePath);
+                try {
+                    writer.close();
+                } catch (IOException ioe) {
+                    log.error("Error closing failed writer: {}", ioe.getMessage());
+                }
+            }
         }
     }
 
     public BufferedWriter createWriter(String filePath) {
         try {
-            return new BufferedWriter(new FileWriter(filePath, true));
+            File file = new File(filePath);
+            File parentDir = file.getParentFile();
+            if (!parentDir.exists() && !parentDir.mkdirs()) {
+                throw new IOException("Failed to create directory: " + parentDir);
+            }
+            return new BufferedWriter(new FileWriter(file, true), 8192); // 8KB buffer
         } catch (IOException e) {
             throw new RuntimeException("Failed to create writer for file: " + filePath, e);
         }
@@ -118,9 +160,12 @@ public class FileWriterService {
                 record.getHashValue());
     }
 
-    public String generateFilePath(DataRecordMessage record) {
+    private String generateFilePath(DataRecordMessage record) {
         String directoryPath = properties.getPaths().getFiltered();
-        return String.format("%s/%d-%s.txt", directoryPath, record.getTimestamp(), instanceId);
-    }
+        String timeWindow = DateTimeFormatter.ofPattern(DATE_FORMAT)
+                .format(Instant.ofEpochMilli(record.getTimestamp())
+                        .atZone(ZoneId.systemDefault()));
 
+        return String.format("%s/%s-%s.txt", directoryPath, timeWindow, instanceId);
+    }
 }

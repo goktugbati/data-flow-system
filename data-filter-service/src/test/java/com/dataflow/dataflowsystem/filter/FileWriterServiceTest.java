@@ -14,10 +14,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.mockito.Mockito.*;
 
@@ -25,24 +29,22 @@ import static org.mockito.Mockito.*;
 class FileWriterServiceTest {
 
     @Mock
-    private FileProperties fileProperties;
+    private FileProperties fileProperties; // Only mock this
 
-    @Mock
-    private FileProperties.Paths paths;
-
-    @InjectMocks
     private FileWriterService fileWriterService;
-
-    private final Map<String, BufferedWriter> mockWriters = new HashMap<>();
+    private Map<String, BufferedWriter> mockWriters;
 
     @BeforeEach
     void setup() throws Exception {
-        paths = new FileProperties.Paths();
-        ReflectionTestUtils.setField(paths, "filtered", "/tmp/test-directory");
+        FileProperties.Paths paths = new FileProperties.Paths();
+        paths.setFiltered("/tmp/test-directory"); // Use Lombok setter
 
         lenient().when(fileProperties.getPaths()).thenReturn(paths);
         lenient().when(fileProperties.getFlushIntervalMs()).thenReturn(60000L);
 
+        fileWriterService = new FileWriterService(fileProperties);
+
+        mockWriters = new ConcurrentHashMap<>();
         BufferedWriter mockWriter1 = mock(BufferedWriter.class);
         BufferedWriter mockWriter2 = mock(BufferedWriter.class);
         mockWriters.put("file1.txt", mockWriter1);
@@ -64,7 +66,7 @@ class FileWriterServiceTest {
     void testFlushWithNoWriters() throws Exception {
         Field writersField = FileWriterService.class.getDeclaredField("writers");
         writersField.setAccessible(true);
-        writersField.set(fileWriterService, new HashMap<>()); // Inject an empty map
+        writersField.set(fileWriterService, new HashMap<>());
 
         fileWriterService.flushAllBuffers();
     }
@@ -82,31 +84,25 @@ class FileWriterServiceTest {
 
     @Test
     void testWriteCreatesBufferedWriter() throws Exception {
-        // Arrange
-        String testDirectory = "/tmp/test-directory";
-        long testTimestamp = System.currentTimeMillis();
-        String instanceId = "TestInstance";
-        String expectedFilePath = String.format("%s/%d-%s.txt", testDirectory, testTimestamp, instanceId);
+        ReflectionTestUtils.setField(fileWriterService, "instanceId", "TestInstance");
 
-        ReflectionTestUtils.setField(fileWriterService, "instanceId", instanceId);
+        DataRecordMessage record = new DataRecordMessage();
+        record.setTimestamp(Instant.now().toEpochMilli());
+        record.setRandomValue(50);
+        record.setHashValue("test-hash");
 
         FileWriterService spyService = spy(fileWriterService);
         BufferedWriter mockWriter = mock(BufferedWriter.class);
         doReturn(mockWriter).when(spyService).createWriter(anyString());
 
-        DataRecordMessage record = new DataRecordMessage();
-        record.setTimestamp(testTimestamp);
-        record.setRandomValue(50);
-        record.setHashValue("test-hash");
-
         spyService.write(record);
 
+        String expectedFilePath = String.format("/tmp/test-directory/%s-TestInstance.txt",
+                DateTimeFormatter.ofPattern("yyyy-MM-dd-HH")
+                        .format(Instant.ofEpochMilli(record.getTimestamp()).atZone(ZoneId.systemDefault()))
+        );
         verify(spyService).createWriter(expectedFilePath);
-        verify(mockWriter).write(contains(String.format("%d,%d,%s",
-                testTimestamp,
-                record.getRandomValue(),
-                record.getHashValue()
-        )));
+        verify(mockWriter).write(contains("50,test-hash"));
     }
 
     @Test

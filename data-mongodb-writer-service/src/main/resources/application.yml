@@ -1,12 +1,18 @@
+# Server Configuration
 server:
   port: 8084
 
+# Application Configuration
 spring:
   application:
     name: data-generator-service
+
+  # MongoDB Configuration
   data:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/dataflow}
+
+  # RabbitMQ Connection Configuration
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
@@ -21,12 +27,14 @@ spring:
           max-interval: 10000
           multiplier: 2
 
+# RabbitMQ Queue Configuration
 rabbitmq:
   queue-name: ${RABBITMQ_QUEUE_NAME:mongodb-queue}
   exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
   routing-key: mongodb.event
   max-retries: 3
 
+# Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
     configs:
@@ -40,6 +48,7 @@ resilience4j:
       mongoWriterCircuitBreaker:
         baseConfig: default
 
+# Monitoring Configuration
 management:
   endpoints:
     web:
@@ -56,6 +65,7 @@ management:
         http.server.requests: true
         resilience4j.circuitbreaker.calls: true
 
+# Logging Configuration
 logging:
   level:
     com.dataflow.dataflowsystem.mongodb: DEBUG
