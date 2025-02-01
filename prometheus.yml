@@ -2,12 +2,15 @@ global:
   scrape_interval: 5s
 
 scrape_configs:
+  # All Spring Boot Services
   - job_name: "data-services"
     metrics_path: "/actuator/prometheus"
     static_configs:
       - targets:
-          - "data-generator:8081"  # Using service name instead of host.docker.internal
-          - "data-filter:8082"     # Using service name instead of host.docker.internal
+          - "data-generator:8081"
+          - "data-filter:8082"
+          - "data-db-writer:8085"
+          - "data-mongodb-writer:8084"
     relabel_configs:
       - source_labels: [__address__]
         regex: '.*:8081'
@@ -17,17 +20,44 @@ scrape_configs:
         regex: '.*:8082'
         target_label: service
         replacement: 'data-filter'
+      - source_labels: [__address__]
+        regex: '.*:8084'
+        target_label: service
+        replacement: 'data-mongodb-writer'
+      - source_labels: [__address__]
+        regex: '.*:8085'
+        target_label: service
+        replacement: 'data-db-writer'
 
+  # Circuit Breakers for all services
   - job_name: "circuit-breakers"
     metrics_path: "/actuator/prometheus"
     static_configs:
-      - targets: ["data-filter:8082"]  # Using service name
+      - targets:
+          - "data-filter:8082"
+          - "data-mongodb-writer:8084"
+          - "data-db-writer:8085"
     metric_relabel_configs:
       - source_labels: [name]
         regex: 'resilience4j_circuitbreaker.*'
         action: keep
 
+  # RabbitMQ Metrics
   - job_name: "rabbitmq"
-    static_configs:
-      - targets: ["rabbitmq:15692"]    # Using service name
     metrics_path: "/metrics"
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+
+#  - job_name: "redis"
+#    static_configs:
+#      - targets: ["redis-exporter:9121"]
+#
+#  # MongoDB Metrics (if you're using MongoDB Exporter)
+#  - job_name: "mongodb"
+#    static_configs:
+#      - targets: ["mongodb-exporter:9216"]
+#
+#  # PostgreSQL Metrics (if you're using PostgreSQL Exporter)
+#  - job_name: "postgresql"
+#    static_configs:
+#      - targets: ["postgres-exporter:9187"]
