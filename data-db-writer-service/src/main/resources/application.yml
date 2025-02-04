@@ -4,20 +4,22 @@ server:
 spring:
   application:
     name: data-database-writer-service
-
-  # Redis Configuration
-  cache:
-    type: redis
+  data:
     redis:
+      client-type: lettuce
       host: ${SPRING_REDIS_HOST:redis}
       port: ${SPRING_REDIS_PORT:6379}
-      timeout: 2000ms
+      timeout: 5000ms
       lettuce:
         pool:
           max-active: 50
           max-idle: 20
           min-idle: 5
-          time-between-eviction-runs: 30s
+      stream:
+        key: data:stream
+        consumer-group: db-writers
+        read-timeout: 5000ms
+        create-if-missing: true
 
   # Database Configuration
   datasource:
@@ -67,12 +69,14 @@ rabbitmq:
 # Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
+    instances:
+      redisService:
+        baseConfig: default
+        waitDurationInOpenState: 30s
     configs:
       default:
-        slidingWindowSize: 100
-        minimumNumberOfCalls: 10
-        waitDurationInOpenState: 10s
-        failureRateThreshold: 50
+        failureRateThreshold: 70
+        permittedNumberOfCallsInHalfOpenState: 5
 
 # Monitoring Configuration
 management:

@@ -7,6 +7,8 @@ version = '1.0-SNAPSHOT'
 
 dependencies {
     compileOnly 'org.projectlombok:lombok'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    annotationProcessor 'com.fasterxml.jackson.core:jackson-annotations'
     annotationProcessor('org.projectlombok:lombok')
 }
 java {
