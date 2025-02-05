@@ -1,10 +1,10 @@
 package com.dataflow.dataflowsystem.generator.handler;
 
-import com.dataflow.dataflowsystem.generator.config.WebSocketProperties;
+import com.dataflow.dataflowsystem.generator.aop.MonitorMetrics;
 import com.dataflow.model.DataRecordMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.micrometer.core.instrument.MeterRegistry;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,40 +21,29 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class WebSocketHandler extends TextWebSocketHandler {
 
+    @Getter
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final MeterRegistry meterRegistry;
-
-    public WebSocketHandler(MeterRegistry meterRegistry) {
-        this.meterRegistry = meterRegistry;
-    }
-
-    public Set<WebSocketSession> getSessions() {
-        return sessions;
-    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         log.info("New WebSocket connection established: {}", session.getId());
         sessions.add(session);
-        meterRegistry.counter("websocket.connections.opened").increment();
-        meterRegistry.gauge("websocket.connections.active", sessions, Set::size);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         log.info("WebSocket connection closed: {} with status: {}", session.getId(), status);
         sessions.remove(session);
-        meterRegistry.counter("websocket.connections.closed").increment();
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         log.error("Transport error for session {}: {}", session.getId(), exception.getMessage());
         sessions.remove(session);
-        meterRegistry.counter("websocket.errors").increment();
     }
 
+    @MonitorMetrics(value = "websocket_send", operation = "send_message")
     public void sendMessage(DataRecordMessage record) throws JsonProcessingException {
         String message = objectMapper.writeValueAsString(record);
 
@@ -71,7 +60,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
             } catch (IOException e) {
                 log.error("Error sending message to session {}: {}", session.getId(), e.getMessage());
                 sessions.remove(session);
-                meterRegistry.counter("websocket.send.failures").increment();
             }
         }
     }

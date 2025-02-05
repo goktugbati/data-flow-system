@@ -26,9 +26,12 @@ repositories {
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-websocket")
+	implementation("org.springframework.boot:spring-boot-starter-aop")
 	implementation("org.projectlombok:lombok")
 	implementation("commons-codec:commons-codec")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("io.github.resilience4j:resilience4j-spring-boot2:2.1.0")
+	implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.1.0")
 	implementation 'io.micrometer:micrometer-core'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
 	implementation project(':data-models')

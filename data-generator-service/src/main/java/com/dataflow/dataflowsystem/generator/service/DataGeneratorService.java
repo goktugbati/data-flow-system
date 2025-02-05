@@ -1,14 +1,17 @@
 package com.dataflow.dataflowsystem.generator.service;
 
+import com.dataflow.dataflowsystem.generator.aop.MonitorMetrics;
 import com.dataflow.dataflowsystem.generator.config.WebSocketProperties;
 import com.dataflow.dataflowsystem.generator.handler.WebSocketHandler;
 import com.dataflow.model.DataRecordMessage;
-import io.micrometer.core.instrument.MeterRegistry;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-import io.micrometer.core.instrument.Timer;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Random;
 
@@ -19,42 +22,58 @@ public class DataGeneratorService {
     private final WebSocketHandler webSocketHandler;
     private final WebSocketProperties webSocketProperties;
     private final Random random = new Random();
-    private final MeterRegistry meterRegistry;
-    private final Timer generationTimer;
+    @Value("${filter-service.health-check-url}")
+    private String filterServiceHealthCheckUrl;
+    private final RestTemplate restTemplate;
 
     public DataGeneratorService(WebSocketHandler webSocketHandler,
-                                WebSocketProperties webSocketProperties,
-                                MeterRegistry meterRegistry) {
+                                WebSocketProperties webSocketProperties) {
         this.webSocketHandler = webSocketHandler;
         this.webSocketProperties = webSocketProperties;
-        this.meterRegistry = meterRegistry;
-        this.generationTimer = meterRegistry.timer("data.generator.time");
+        this.restTemplate = new RestTemplate();
     }
 
     @Scheduled(fixedRate = 200)
+    @MonitorMetrics(value = "websocket_send", operation = "send_message")
     public void generateAndSendData() {
-        generationTimer.record(() -> {
-            DataRecordMessage record = generateData();
-            boolean success = false;
-            int attempts = 0;
+        if (!isFilterServiceAvailable()) {
+            log.warn("Filter service is down. Skipping data generation.");
+            return;
+        }
 
-            while (!success && attempts < webSocketProperties.getMaxRetryAttempts()) {
-                try {
-                    webSocketHandler.sendMessage(record);
-                    meterRegistry.counter("data.generator.success").increment();
-                    log.info("Generated and sent data: {}", record);
-                    success = true;
-                } catch (Exception e) {
-                    attempts++;
-                    meterRegistry.counter("data.generator.retries").increment();
-                    log.warn("Error sending data (Attempt {}/{}): {}", attempts, webSocketProperties.getMaxRetryAttempts(), e.getMessage());
-                    if (attempts == webSocketProperties.getMaxRetryAttempts()) {
-                        meterRegistry.counter("data.generator.failures").increment();
-                        log.error("Failed to send data after {} attempts: {}", webSocketProperties.getMaxRetryAttempts(), record);
-                    }
+        DataRecordMessage record = generateData();
+        boolean success = false;
+        int attempts = 0;
+
+        while (!success && attempts < webSocketProperties.getMaxRetryAttempts()) {
+            try {
+                webSocketHandler.sendMessage(record);
+                log.info("Generated and sent data: {}", record);
+                success = true;
+            } catch (Exception e) {
+                attempts++;
+                log.warn("Error sending data (Attempt {}/{}): {}", attempts, webSocketProperties.getMaxRetryAttempts(), e.getMessage());
+                if (attempts == webSocketProperties.getMaxRetryAttempts()) {
+                    log.error("Failed to send data after {} attempts: {}", webSocketProperties.getMaxRetryAttempts(), record);
                 }
             }
-        });
+        }
+    }
+
+    @CircuitBreaker(name = "filterServiceCircuitBreaker", fallbackMethod = "fallbackFilterServiceCheck")
+    public boolean isFilterServiceAvailable() {
+        try {
+            ResponseEntity<String> response = restTemplate.getForEntity(filterServiceHealthCheckUrl, String.class);
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            log.warn("Filter service is not available: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean fallbackFilterServiceCheck(Throwable t) {
+        log.warn("Circuit breaker triggered for filter service: {}", t.getMessage());
+        return false;
     }
 
     public DataRecordMessage generateData() {
@@ -70,4 +89,3 @@ public class DataGeneratorService {
         return combinedMd5.substring(combinedMd5.length() - 2);
     }
 }
-

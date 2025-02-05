@@ -26,3 +26,20 @@ management:
 logging:
   level:
     com.dataflow.dataflowsystem.generator: DEBUG
+
+filter-service:
+  health-check-url: http://data-filter:8082/actuator/health
+
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      filterServiceCircuitBreaker:
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000ms
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 10s
+        automaticTransitionFromOpenToHalfOpenEnabled: true
