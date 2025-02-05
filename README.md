@@ -1,102 +1,105 @@
 # Data Flow System
 
 ## Overview
-The Data Flow System is a microservices-based application designed to generate, process, and store data efficiently. The system consists of four main components:
+The **Data Flow System** is a microservices-based application designed to generate, process, filter, and store data efficiently using event-driven architecture. The system leverages **WebSockets**, **message queues**, and **multiple storage backends** to handle high-throughput data streams.
 
-1. **Data Generator Service**: Produces random data and writes to a WebSocket.
-2. **Data Filter Service**: Filters and processes data, either appending to a file or sending to a message queue.
-3. **Database Writer Service**: Writes filtered data from the queue to a relational database.
-4. **MongoDB Writer Service**: Writes filtered data from the queue to a MongoDB collection with nested structures based on specific criteria.
-
----
-
-## System Requirements
+## System Components
+The system consists of the following microservices:
 
 ### 1. **Data Generator Service**
-   - **Functionality**:
-     - Generates data containing:
-       - `timestamp`
-       - Random integer (0-100)
-       - Last 2 characters of the MD5 hash of the above values
-     - Produces **5 values per second**.
-     - Writes the generated data to a WebSocket.
-   - **Output**: Real-time data stream sent via WebSocket.
-
----
+- **Functionality**:
+    - Generates data records containing:
+        - `timestamp`
+        - Random integer (0-100)
+        - Last 2 characters of the MD5 hash of the above values.
+    - Produces **5 records per second**.
+    - Sends the generated data to the **Data Filter Service** via WebSocket.
+    - **Circuit Breaker**: Stops sending data if the **Filter Service** is unavailable.
 
 ### 2. **Data Filter Service**
-   - **Functionality**:
-     - Listens to the WebSocket for real-time data from the **Data Generator Service**.
-     - Filters the incoming data based on the following logic:
-       - If the `random value` > 90:
-         - Sends the data to a message queue.
-       - Otherwise:
-         - Appends the data to a file.
-   - **Output**: Filtered data is either sent to the message queue or written to a file.
-
----
+- **Functionality**:
+    - Receives real-time data from **Data Generator Service** via WebSocket.
+    - Applies filtering logic:
+        - If `random value > 90`: Sends data to **RabbitMQ** for further processing.
+        - Otherwise: Appends the data to a file (**Buffered Writing** for efficiency).
+    - **Circuit Breaker**: Ensures stability if the **message queue** or **file system** is down.
 
 ### 3. **Message Queue Consumer Services**
 #### a) **Database Writer Service**
-   - **Functionality**:
-     - Reads filtered data from the message queue.
-     - Writes the data into a relational database table.
+- **Functionality**:
+    - Consumes filtered data from **RabbitMQ**.
+    - Stores the data into a **relational database (PostgreSQL)**.
+    - **Resilience Features**:
+        - **Circuit Breaker** to handle **database failures**.
+        - **Retry mechanism** with exponential backoff.
+        - **Metrics and monitoring** for database operations.
 
 #### b) **MongoDB Writer Service**
-   - **Functionality**:
-     - Reads filtered data from the message queue.
-     - Writes the data into a MongoDB collection based on the following rules:
-       - If the hash value > "99":
-         - Nests consecutive records into the same document.
-       - Otherwise:
-         - Creates a new document for each record.
+- **Functionality**:
+    - Consumes filtered data from **RabbitMQ**.
+    - Stores the data into **MongoDB**, applying nested document rules:
+        - If `hashValue > "99"`: Nest consecutive records into the same document.
+        - Otherwise: Create a new document.
+    - **Resilience Features**:
+        - **Circuit Breaker** to handle **MongoDB unavailability**.
+        - **Metrics tracking failures and latencies**.
+
+### 4. **Monitoring and Observability**
+- **Metrics collection** using **Micrometer & Prometheus**.
+- **Logging & tracing** integrated via **Spring AOP**.
+- **Health checks** for each service to ensure uptime.
 
 ---
-
 ## System Architecture
+### Data Flow Overview
+1. **Data Generator Service** streams real-time data via WebSocket.
+2. **Data Filter Service** processes data and routes it:
+    - **Message Queue** for high-value data.
+    - **File system** for other records.
+3. **Database Writer Service** and **MongoDB Writer Service** consume messages from the queue and store data.
+4. **Monitoring & Circuit Breakers** ensure resilience and observability.
 
-1. **Data Flow**:
-   - Data is generated in real time by the **Data Generator Service**.
-   - The **Data Filter Service** processes the data and routes it to either:
-     - A message queue for further processing.
-     - A file for storage.
-   - The **Message Queue Consumer Services** consume the data:
-     - **Database Writer Service** stores it in a relational database.
-     - **MongoDB Writer Service** organizes it in MongoDB.
-
-2. **Key Technologies**:
-   - **WebSocket**: Used for real-time data streaming.
-   - **Message Queue**: Ensures decoupled communication between services.
-   - **Relational Database**: Stores structured data.
-   - **MongoDB**: Stores nested data structures based on specific criteria.
+### Key Technologies Used
+- **Spring Boot** for microservices.
+- **WebSocket** for real-time data streaming.
+- **RabbitMQ** as a message broker.
+- **PostgreSQL & MongoDB** for structured and unstructured data.
+- **Resilience4j** for circuit breakers and fault tolerance.
+- **Micrometer & Prometheus** for monitoring.
+- **Docker & Docker Compose** for containerized deployment.
 
 ---
-
 ## Setup and Execution
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-repo/data-flow-system.git
-   cd data-flow-system
-   ```
+### 1. Clone the repository:
+```bash
+git clone https://github.com/your-repo/data-flow-system.git
+cd data-flow-system
+```
 
-2. Build and run the system:
-   ```bash
-   ./gradlew build
-   docker-compose up
-   ```
+### 2. Build and run the system:
+```bash
+./gradlew build
+docker-compose up
+```
 
-3. Access logs for each service to monitor its behavior:
-   ```bash
-   docker-compose logs -f <service-name>
-   ```
+### 3. Monitor logs:
+```bash
+docker-compose logs -f <service-name>
+```
+
+### 4. Run tests:
+```bash
+./gradlew test
+```
 
 ---
-
 ## Future Enhancements
-- Add a monitoring service for real-time visualization of processed data.
-- Add support for dynamic filtering criteria.
+- Add a **stream processing layer** (Kafka or Flink) for complex event processing.
+- Implement **dynamic filtering** with a rule engine.
+- Extend **alerting mechanisms** for system failures.
+- Introduce **API Gateway** for centralized management.
 
 ---
+This **Data Flow System** is designed for **scalability, resilience, and efficiency**, making it ideal for real-time data processing needs.
 
-Feel free to modify the above structure as needed. Let me know if you'd like help formatting or adding further details!
