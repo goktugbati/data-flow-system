@@ -1,4 +1,4 @@
-package com.dataflow.datadbwriterservice.aop;
+package com.dataflow.datamongodbwriterservice.aop;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;

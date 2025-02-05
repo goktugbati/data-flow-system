@@ -28,7 +28,7 @@ import static org.mockito.Mockito.*;
 class FileWriterServiceTest {
 
     @Mock
-    private FileProperties fileProperties; // Only mock this
+    private FileProperties fileProperties;
 
     private FileWriterService fileWriterService;
     private Map<String, BufferedWriter> mockWriters;
@@ -36,8 +36,7 @@ class FileWriterServiceTest {
     @BeforeEach
     void setup() throws Exception {
         FileProperties.Paths paths = new FileProperties.Paths();
-        paths.setFiltered("/tmp/test-directory"); // Use Lombok setter
-
+        paths.setFiltered("/tmp/test-directory");
         lenient().when(fileProperties.getPaths()).thenReturn(paths);
         lenient().when(fileProperties.getFlushIntervalMs()).thenReturn(60000L);
 
@@ -96,13 +95,15 @@ class FileWriterServiceTest {
 
         spyService.write(record);
 
+        // Updated file path to include minutes
         String expectedFilePath = String.format("/tmp/test-directory/%s-TestInstance.txt",
-                DateTimeFormatter.ofPattern("yyyy-MM-dd-HH")
+                DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm") // Now grouping by minute
                         .format(Instant.ofEpochMilli(record.getTimestamp()).atZone(ZoneId.systemDefault()))
         );
         verify(spyService).createWriter(expectedFilePath);
         verify(mockWriter).write(contains("50,test-hash"));
     }
+
 
     @Test
     void testWriteHandlesNullRecord() {

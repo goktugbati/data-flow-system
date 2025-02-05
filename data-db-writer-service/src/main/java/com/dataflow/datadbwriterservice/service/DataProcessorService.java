@@ -3,7 +3,6 @@ package com.dataflow.datadbwriterservice.service;
 import com.dataflow.datadbwriterservice.aop.MonitorMetrics;
 import com.dataflow.datadbwriterservice.entity.DataRecordEntity;
 import com.dataflow.datadbwriterservice.repository.DataRecordRepository;
-import com.dataflow.model.DataRecordMessage;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;

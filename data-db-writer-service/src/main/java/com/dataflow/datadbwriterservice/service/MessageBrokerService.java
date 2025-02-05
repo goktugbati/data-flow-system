@@ -1,16 +1,15 @@
 package com.dataflow.datadbwriterservice.service;
 
-import com.dataflow.datadbwriterservice.exception.MessageBrokerException;
+import com.dataflow.datadbwriterservice.aop.MonitorMetrics;
 import com.rabbitmq.client.Channel;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class MessageBrokerService {
 
+    @MonitorMetrics(value = "rabbitmq", operation = "acknowledge_message")
     public void acknowledgeMessage(Channel channel, long deliveryTag) {
         try {
             if (channel.isOpen()) {
@@ -21,10 +20,10 @@ public class MessageBrokerService {
             }
         } catch (Exception e) {
             log.error("Failed to acknowledge message: {}", deliveryTag, e);
-            throw new MessageBrokerException("Failed to acknowledge message", e);
         }
     }
 
+    @MonitorMetrics(value = "rabbitmq", operation = "reject_message")
     public void rejectMessage(Channel channel, long deliveryTag, boolean requeue) {
         try {
             if (channel.isOpen()) {
@@ -35,7 +34,6 @@ public class MessageBrokerService {
             }
         } catch (Exception e) {
             log.error("Failed to reject message: {}", deliveryTag, e);
-            throw new MessageBrokerException("Failed to reject message", e);
         }
     }
 }

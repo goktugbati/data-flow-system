@@ -162,7 +162,7 @@ public class FileWriterService {
 
     private String generateFilePath(DataRecordMessage record) {
         String directoryPath = properties.getPaths().getFiltered();
-        String timeWindow = DateTimeFormatter.ofPattern(DATE_FORMAT)
+        String timeWindow = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")  // Group by minute
                 .format(Instant.ofEpochMilli(record.getTimestamp())
                         .atZone(ZoneId.systemDefault()));
 

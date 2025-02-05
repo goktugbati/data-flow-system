@@ -1,5 +1,6 @@
 package com.dataflow.dataflowsystem.filter.service;
 
+import com.dataflow.dataflowsystem.filter.aop.MonitorMetrics;
 import com.dataflow.model.DataRecordMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ public class DataFilterService implements DataProcessor {
     }
 
     @Override
+    @MonitorMetrics(value = "processor", operation = "process_batch")
     public void processData(DataRecordMessage record) {
         try {
             if (record.getRandomValue() > 90) {
@@ -27,6 +29,11 @@ public class DataFilterService implements DataProcessor {
             }
         } catch (Exception e) {
             log.error("Error processing record {}: {}", record, e.getMessage());
+            throw e;
         }
+    }
+
+    public void handleFailure(DataRecordMessage record, Throwable throwable) {
+        log.warn("Fallback method invoked for record {} due to: {}", record, throwable.getMessage());
     }
 }
