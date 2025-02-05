@@ -10,17 +10,19 @@ import org.springframework.stereotype.Service;
 public class DataFilterService implements DataProcessor {
     private final MessageQueueService messageQueue;
     private final FileWriterService fileWriter;
+    private final RuleEngineService ruleEngineService;
 
-    public DataFilterService(MessageQueueService messageQueue, FileWriterService fileWriter) {
+    public DataFilterService(MessageQueueService messageQueue, FileWriterService fileWriter, RuleEngineService ruleEngineService) {
         this.messageQueue = messageQueue;
         this.fileWriter = fileWriter;
+        this.ruleEngineService = ruleEngineService;
     }
 
     @Override
-    @MonitorMetrics(value = "processor", operation = "process_batch")
+    @MonitorMetrics(value = "data_filter", operation = "process_data")
     public void processData(DataRecordMessage record) {
         try {
-            if (record.getRandomValue() > 90) {
+            if (ruleEngineService.evaluateRules(record)) {
                 messageQueue.send(record);
                 log.info("Sent to MQ: {}", record);
             } else {
@@ -31,9 +33,5 @@ public class DataFilterService implements DataProcessor {
             log.error("Error processing record {}: {}", record, e.getMessage());
             throw e;
         }
-    }
-
-    public void handleFailure(DataRecordMessage record, Throwable throwable) {
-        log.warn("Fallback method invoked for record {} due to: {}", record, throwable.getMessage());
     }
 }

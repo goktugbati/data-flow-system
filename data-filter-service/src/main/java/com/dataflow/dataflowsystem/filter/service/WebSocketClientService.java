@@ -63,7 +63,7 @@ public class WebSocketClientService {
                             try {
                                 WebSocketClient client = new StandardWebSocketClient();
                                 session = client.execute(
-                                        new WebSocketHandler(circuitBreaker, dataProcessor),
+                                        new WebSocketHandler(dataProcessor),
                                         serverUri
                                 ).get();
                                 connected = true;

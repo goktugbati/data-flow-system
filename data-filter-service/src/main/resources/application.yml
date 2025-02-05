@@ -61,8 +61,17 @@ resilience4j:
     instances:
       webSocketCircuitBreaker:
         baseConfig: default
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000ms
+        slidingWindowSize: 10
       messageQueueCircuitBreaker:
-        baseConfig: default
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000ms
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
 
 # Monitoring Configuration
 management:

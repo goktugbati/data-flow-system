@@ -4,10 +4,8 @@ import com.dataflow.dataflowsystem.generator.aop.MonitorMetrics;
 import com.dataflow.dataflowsystem.generator.config.WebSocketProperties;
 import com.dataflow.dataflowsystem.generator.handler.WebSocketHandler;
 import com.dataflow.model.DataRecordMessage;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -21,22 +19,21 @@ public class DataGeneratorService {
 
     private final WebSocketHandler webSocketHandler;
     private final WebSocketProperties webSocketProperties;
+    private final FilterServiceHealthCheckService filterServiceHealthCheckService;
     private final Random random = new Random();
-    @Value("${filter-service.health-check-url}")
-    private String filterServiceHealthCheckUrl;
-    private final RestTemplate restTemplate;
 
     public DataGeneratorService(WebSocketHandler webSocketHandler,
-                                WebSocketProperties webSocketProperties) {
+                                WebSocketProperties webSocketProperties,
+                                FilterServiceHealthCheckService filterServiceHealthCheckService) {
         this.webSocketHandler = webSocketHandler;
         this.webSocketProperties = webSocketProperties;
-        this.restTemplate = new RestTemplate();
+        this.filterServiceHealthCheckService = filterServiceHealthCheckService;
     }
 
     @Scheduled(fixedRate = 200)
     @MonitorMetrics(value = "websocket_send", operation = "send_message")
     public void generateAndSendData() {
-        if (!isFilterServiceAvailable()) {
+        if (!filterServiceHealthCheckService.isFilterServiceAvailable()) {
             log.warn("Filter service is down. Skipping data generation.");
             return;
         }
@@ -58,22 +55,6 @@ public class DataGeneratorService {
                 }
             }
         }
-    }
-
-    @CircuitBreaker(name = "filterServiceCircuitBreaker", fallbackMethod = "fallbackFilterServiceCheck")
-    public boolean isFilterServiceAvailable() {
-        try {
-            ResponseEntity<String> response = restTemplate.getForEntity(filterServiceHealthCheckUrl, String.class);
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (Exception e) {
-            log.warn("Filter service is not available: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    private boolean fallbackFilterServiceCheck(Throwable t) {
-        log.warn("Circuit breaker triggered for filter service: {}", t.getMessage());
-        return false;
     }
 
     public DataRecordMessage generateData() {
