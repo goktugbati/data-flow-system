@@ -6,11 +6,38 @@ server:
 spring:
   application:
     name: data-generator-service
+  data:
+    redis:
+      client-type: lettuce
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 5
+      stream:
+        key: data:stream
+        consumer-group: data-generators
+        read-timeout: 5000ms
+        create-if-missing: true
+  jackson:
+    serialization:
+      INDENT_OUTPUT: true
+    deserialization:
+      FAIL_ON_UNKNOWN_PROPERTIES: false
+    default-property-inclusion: non_null
+
 
 # WebSocket Configuration
 websocket:
-  max-retry-attempts: 3
-  cleanup-interval-ms: 60000
+  cleanup-interval: 60000
+
+batch:
+  size: 100                 # Maximum batch size
+  processing-interval-ms: 1000  # Batch processing interval
+  buffer-size: 500          # Buffer limit before triggering batch processing
 
 # Monitoring Configuration
 management:
@@ -26,20 +53,41 @@ management:
 logging:
   level:
     com.dataflow.dataflowsystem.generator: DEBUG
-
-filter-service:
-  health-check-url: http://data-filter:8082/actuator/health
-
+    org.springframework.web: ERROR
+    org.springframework.scheduling: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
 
 resilience4j:
   circuitbreaker:
-    instances:
-      filterServiceCircuitBreaker:
-        failureRateThreshold: 50
-        slowCallRateThreshold: 50
-        slowCallDurationThreshold: 2000ms
-        permittedNumberOfCallsInHalfOpenState: 2
+    configs:
+      default:
         slidingWindowSize: 10
         minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+    instances:
+      websocketCircuitBreaker:
+        baseConfig: default
+      healthCheckCircuitBreaker:
+        baseConfig: default
+      filterServiceCircuitBreaker:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
         waitDurationInOpenState: 10s
-        automaticTransitionFromOpenToHalfOpenEnabled: true
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+  retry:
+    instances:
+      redisRetry:
+        maxAttempts: 5
+        waitDuration: 2000
+        exponentialBackoffMultiplier: 2
+      websocketRetry:
+        maxAttempts: 3
+        waitDuration: 1000
+        exponentialBackoffMultiplier: 1.5
+      healthCheckRetry:
+        maxAttempts: 4
+        waitDuration: 1500

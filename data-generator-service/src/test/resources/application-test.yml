@@ -1,0 +1,32 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      test:
+        connection: false  # Disable Redis connection for tests
+
+websocket:
+  cleanup-interval: 1000  # Faster cleanup for tests
+
+batch:
+  size: 10
+  processing-interval-ms: 500
+  buffer-size: 500
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      websocketCircuitBreaker:
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 2s
+        permittedNumberOfCallsInHalfOpenState: 1
+        minimumNumberOfCalls: 2
+  retry:
+    instances:
+      websocketRetry:
+        maxAttempts: 2
+        waitDuration: 500

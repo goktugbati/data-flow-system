@@ -14,6 +14,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,7 +24,11 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
     @Getter
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public WebSocketHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -43,9 +48,9 @@ public class WebSocketHandler extends TextWebSocketHandler {
         sessions.remove(session);
     }
 
-    @MonitorMetrics(value = "websocket_send", operation = "send_message")
-    public void sendMessage(DataRecordMessage record) throws JsonProcessingException {
-        String message = objectMapper.writeValueAsString(record);
+    @MonitorMetrics(value = "websocket_send", operation = "send_batch")
+    public void sendBatch(List<DataRecordMessage> records) throws JsonProcessingException {
+        String message = objectMapper.writeValueAsString(records);
 
         for (WebSocketSession session : sessions) {
             if (!session.isOpen()) {
@@ -56,15 +61,15 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
             try {
                 session.sendMessage(new TextMessage(message));
-                log.info("Message sent to session {}: {}", session.getId(), message);
+                log.info("Batch sent to session {}: {}", session.getId(), message);
             } catch (IOException e) {
-                log.error("Error sending message to session {}: {}", session.getId(), e.getMessage());
+                log.error("Error sending batch to session {}: {}", session.getId(), e.getMessage());
                 sessions.remove(session);
             }
         }
     }
 
-    @Scheduled(fixedRateString = "#{webSocketProperties.cleanupIntervalMs}")
+    @Scheduled(fixedRateString = "${websocket.cleanup-interval}")
     public void cleanupInactiveSessions() {
         sessions.removeIf(session -> {
             if (!session.isOpen()) {

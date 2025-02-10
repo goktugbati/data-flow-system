@@ -30,6 +30,7 @@ dependencies {
 	implementation("org.projectlombok:lombok")
 	implementation("commons-codec:commons-codec")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation("io.github.resilience4j:resilience4j-spring-boot2:2.1.0")
 	implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.1.0")
 	implementation 'io.micrometer:micrometer-core'
