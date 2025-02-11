@@ -35,9 +35,10 @@ public class RedisService {
         log.warn("Redis write failed for key {}: {}", key, t.getMessage());
     }
 
-    public void fallbackRetrySendBatch(Throwable t) {
+    public void fallbackRetryAddToBatch(Throwable t) {
         log.warn("Retry failed for WebSocket batch sending: {}", t.getMessage());
     }
+
 
     public List<DataRecordMessage> getBatch(String key) {
         return listOps.range(key, 0, bufferSize - 1);

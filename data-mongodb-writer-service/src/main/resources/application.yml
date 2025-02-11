@@ -5,34 +5,47 @@ server:
 # Application Configuration
 spring:
   application:
-    name: data-generator-service
+    name: data-mongodb-writer-service
 
   # MongoDB Configuration
   data:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/dataflow}
+      write-concern: MAJORITY
+      read-concern: MAJORITY
+      bulk-operations:
+        ordered: false
+        batch-size: 100
 
-  # RabbitMQ Connection Configuration
-  rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
-    port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
-    listener:
-      simple:
-        retry:
-          enabled: true
-          initial-interval: 1000
-          max-attempts: 3
-          max-interval: 10000
-          multiplier: 2
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 500
+      properties:
+        isolation.level: read_committed
+        max.poll.interval.ms: 300000
+        heartbeat.interval.ms: 3000
+        session.timeout.ms: 45000
 
-# RabbitMQ Queue Configuration
-rabbitmq:
-  queue-name: ${RABBITMQ_QUEUE_NAME:mongodb-queue}
-  exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
-  routing-key: mongodb.event
-  max-retries: 3
+kafka:
+  topic:
+    name: data-topic
+
+# MongoDB Batch Configuration
+mongodb:
+  batch:
+    size: 100
+    max-wait-ms: 1000
+    buffer-size: 1000
+    retry:
+      max-attempts: 3
+      initial-interval: 1000
+      max-interval: 10000
+      multiplier: 2
 
 # Circuit Breaker Configuration
 resilience4j:
@@ -45,8 +58,11 @@ resilience4j:
         waitDurationInOpenState: 5s
         failureRateThreshold: 50
     instances:
-      mongoWriterCircuitBreaker:
+      kafkaConsumerCircuitBreaker:
         baseConfig: default
+      mongoDbCircuitBreaker:
+        baseConfig: default
+
 
 # Monitoring Configuration
 management:
@@ -57,15 +73,25 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+    mongo:
+      enabled: true
+    kafka:
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
+      kafka.client-id: ${spring.application.name}
     distribution:
       percentiles-histogram:
         http.server.requests: true
         resilience4j.circuitbreaker.calls: true
+        mongodb.operation: true
+        kafka.consumer: true
 
 # Logging Configuration
 logging:
   level:
-    com.dataflow.dataflowsystem.mongodb: DEBUG
+    com.dataflow: DEBUG

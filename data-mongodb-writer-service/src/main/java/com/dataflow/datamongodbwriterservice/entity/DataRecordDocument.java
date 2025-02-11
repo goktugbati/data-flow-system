@@ -8,7 +8,9 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Document(collection = "data_records")
 @CompoundIndex(def = "{'timestamp': -1}")
@@ -21,11 +23,11 @@ public class DataRecordDocument {
     private Long timestamp;
     private Integer randomValue;
     private String hashValue;
-    private List<DataRecordDocument> nestedRecords;
+    private List<DataRecordDocument> nestedRecords = new ArrayList<>();
 
-    public static DataRecordDocument fromDataRecord(DataRecordMessage record, String messageId) {
+    public static DataRecordDocument fromDataRecord(DataRecordMessage record) {
         DataRecordDocument doc = new DataRecordDocument();
-        doc.setId(messageId);
+        doc.setId(String.valueOf(UUID.randomUUID()));
         doc.setTimestamp(record.getTimestamp());
         doc.setRandomValue(record.getRandomValue());
         doc.setHashValue(record.getHashValue());

@@ -76,7 +76,7 @@ class RedisServiceTest {
 
     @Test
     void whenFallbackRetrySendBatch_thenLogWarning() {
-        redisService.fallbackRetrySendBatch(new RuntimeException("Retry Error"));
+        redisService.fallbackRetryAddToBatch(new RuntimeException("Retry Error"));
         verifyNoInteractions(listOps);
     }
 }
