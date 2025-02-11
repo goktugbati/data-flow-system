@@ -20,6 +20,19 @@ spring:
         consumer-group: db-writers
         read-timeout: 5000ms
         create-if-missing: true
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+    consumer:
+      group-id: ${spring.application.name}  # This will use the service name as group ID
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 500
+      properties:
+        isolation.level: read_committed
+        max.poll.interval.ms: 300000
+        heartbeat.interval.ms: 3000
+        session.timeout.ms: 45000
 
   # Database Configuration
   datasource:
@@ -37,46 +50,32 @@ spring:
         jdbc.batch_size: 50
         order_inserts: true
 
-  # RabbitMQ Configuration
-  rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
-    port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
-    listener:
-      simple:
-        acknowledge-mode: manual
-        retry:
-          enabled: true
-          initial-interval: 1000
-          max-attempts: 3
-          max-interval: 10000
-          multiplier: 2
-        missing-queues-fatal: false
-        default-requeue-rejected: true
-        retry-operations-interval: 1000
-
   # Batch Processing
   batch:
     processing:
       interval: 5000
 
-# RabbitMQ Queue Configuration
-rabbitmq:
-  queue-name: ${RABBITMQ_QUEUE_NAME:database-queue}
-  exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
+kafka:
+  topic:
+    name: data-topic
 
 # Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
-    instances:
-      redisService:
-        baseConfig: default
-        waitDurationInOpenState: 30s
     configs:
       default:
-        failureRateThreshold: 70
-        permittedNumberOfCallsInHalfOpenState: 5
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+    instances:
+      kafkaConsumerCircuitBreaker:
+        baseConfig: default
+      redisCircuitBreaker:
+        baseConfig: default
+      dbWriteCircuitBreaker:
+        baseConfig: default
 
 # Monitoring Configuration
 management:
@@ -90,11 +89,12 @@ management:
   health:
     circuitbreakers:
       enabled: true
-    rabbit:
+    kafka:
       enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
+      kafka.client-id: ${spring.application.name}
     distribution:
       percentiles-histogram:
         http.server.requests: true

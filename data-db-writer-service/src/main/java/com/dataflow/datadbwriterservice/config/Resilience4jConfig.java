@@ -38,4 +38,17 @@ public class Resilience4jConfig {
                                         throwable instanceof RedisConnectionFailureException)
                 );
     }
+
+    @Bean
+    public CircuitBreakerConfigCustomizer kafkaCircuitBreakerCustomizer() {
+        return CircuitBreakerConfigCustomizer
+                .of("kafkaService",
+                        builder -> builder
+                                .waitDurationInOpenState(Duration.ofSeconds(10))
+                                .slidingWindowSize(5)
+                                .failureRateThreshold(40.0f)
+                                .recordException(throwable ->
+                                        throwable instanceof RedisConnectionFailureException)
+                );
+    }
 }

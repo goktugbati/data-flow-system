@@ -15,10 +15,12 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      rabbitmq:
+      kafka:
         condition: service_healthy
       data-generator:
         condition: service_started
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     networks:
       - dataflow-network
     volumes:
@@ -33,7 +35,7 @@ services:
       ports:
         - "8084:8084"
       depends_on:
-        - rabbitmq
+        - kafka
         - mongodb
         - data-filter
       networks:
@@ -49,15 +51,10 @@ services:
         SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dataflow
         SPRING_DATASOURCE_USERNAME: postgres
         SPRING_DATASOURCE_PASSWORD: postgres
-        SPRING_RABBITMQ_HOST: rabbitmq
-        SPRING_RABBITMQ_PORT: 5672
-        SPRING_RABBITMQ_USERNAME: guest
-        SPRING_RABBITMQ_PASSWORD: guest
-        SPRING_AMQP_DESERIALIZATION_TRUST_ALL: true
         SPRING_REDIS_HOST: redis
         SPRING_REDIS_PORT: 6379
       depends_on:
-        - rabbitmq
+        - kafka
         - postgres
         - data-filter
         - redis
@@ -86,24 +83,6 @@ services:
     networks:
       - dataflow-network
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-      - RABBITMQ_DEFAULT_VHOST=/
-    networks:
-      - dataflow-network
-    healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
   redis:
     image: redis:latest
     container_name: redis
@@ -123,7 +102,7 @@ services:
     depends_on:
       - data-generator
       - data-filter
-      - rabbitmq
+      - kafka
 
   grafana:
     image: grafana/grafana:latest
@@ -137,6 +116,57 @@ services:
     networks:
       - dataflow-network
 
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - dataflow-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - dataflow-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - dataflow-network
 networks:
   dataflow-network:
     driver: bridge

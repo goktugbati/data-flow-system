@@ -2,6 +2,8 @@ package com.dataflow.dataflowsystem.filter.service;
 
 import com.dataflow.dataflowsystem.filter.config.FileProperties;
 import com.dataflow.model.DataRecordMessage;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -17,8 +19,10 @@ import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -113,31 +117,46 @@ public class FileWriterService {
         });
     }
 
-    public void write(DataRecordMessage record) {
-        if (record == null) {
-            log.error("Cannot write null record");
+    @Retry(name = "fileWriterRetry", fallbackMethod = "fallbackWriteBatch")
+    @CircuitBreaker(name = "fileWriterCircuitBreaker", fallbackMethod = "fallbackWriteBatch")
+    public void writeBatch(List<DataRecordMessage> records) {
+        if (records == null || records.isEmpty()) {
             return;
         }
 
-        String filePath = generateFilePath(record);
-        BufferedWriter writer = null;
-        try {
-            writer = writers.computeIfAbsent(filePath, this::createWriter);
-            synchronized (writer) {
-                writer.write(formatRecord(record));
-                log.debug("Successfully wrote record to buffer: {}", filePath);
-            }
-        } catch (Exception e) {
-            log.error("Error writing to file {}: {}", filePath, e.getMessage());
-            if (writer != null) {
-                writers.remove(filePath);
-                try {
-                    writer.close();
-                } catch (IOException ioe) {
-                    log.error("Error closing failed writer: {}", ioe.getMessage());
+        Map<String, List<DataRecordMessage>> recordsByPath = records.stream()
+                .collect(Collectors.groupingBy(this::generateFilePath));
+
+        recordsByPath.forEach((filePath, pathRecords) -> {
+            BufferedWriter writer = null;
+            try {
+                writer = writers.computeIfAbsent(filePath, this::createWriter);
+                synchronized (writer) {
+                    for (DataRecordMessage record : pathRecords) {
+                        writer.write(formatRecord(record));
+                    }
+                    writer.flush();
                 }
+                log.debug("Successfully wrote batch of {} records to file: {}", pathRecords.size(), filePath);
+            } catch (Exception e) {
+                log.error("Error writing batch to file {}: {}", filePath, e.getMessage());
+                if (writer != null) {
+                    writers.remove(filePath);
+                    try {
+                        writer.close();
+                    } catch (IOException ioe) {
+                        log.error("Error closing failed writer: {}", ioe.getMessage());
+                    }
+                }
+                throw new RuntimeException("File write error", e);  // Ensure circuit breaker tracks the failure
             }
-        }
+        });
+    }
+
+
+
+    public void fallbackWriteBatch(List<DataRecordMessage> records, Throwable t) {
+        log.warn("File write failed after retries: {}", t.getMessage(), t);
     }
 
     public BufferedWriter createWriter(String filePath) {

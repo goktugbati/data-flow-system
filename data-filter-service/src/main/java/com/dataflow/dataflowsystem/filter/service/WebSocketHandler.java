@@ -1,13 +1,15 @@
-package com.dataflow.dataflowsystem.filter.config;
+package com.dataflow.dataflowsystem.filter.service;
 
-import com.dataflow.dataflowsystem.filter.service.DataProcessor;
 import com.dataflow.model.DataRecordMessage;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import java.util.List;
 
 @Slf4j
 public class WebSocketHandler extends TextWebSocketHandler {
@@ -21,20 +23,21 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
     @Override
     @CircuitBreaker(name = "websocketHandlerCircuitBreaker", fallbackMethod = "fallbackHandleTextMessage")
-    public void handleTextMessage(WebSocketSession session, TextMessage message) {
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
-            DataRecordMessage record = objectMapper.readValue(
-                    message.getPayload(),
-                    DataRecordMessage.class
-            );
-            dataProcessor.processData(record);
+            List<DataRecordMessage> dataRecords = objectMapper.readValue(
+                    message.getPayload(), new TypeReference<>() {
+                    });
+
+            log.info("Received batch of {} messages", dataRecords.size());
+
+            dataProcessor.processBatch(dataRecords);
         } catch (Exception e) {
-            log.error("Error processing message: {}", e.getMessage());
-            throw new RuntimeException("Message processing failed", e);
+            log.error("Error processing WebSocket batch message: {}", e.getMessage(), e);
         }
     }
 
     public void fallbackHandleTextMessage(WebSocketSession session, TextMessage message, Throwable t) {
-        log.warn("Circuit breaker triggered. Failing gracefully. Reason: {}", t.getMessage());
+        log.warn("WebSocket handler circuit breaker triggered: {}", t.getMessage());
     }
 }

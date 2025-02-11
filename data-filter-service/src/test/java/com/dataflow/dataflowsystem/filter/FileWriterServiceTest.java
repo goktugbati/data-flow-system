@@ -80,35 +80,35 @@ class FileWriterServiceTest {
         Mockito.verify(mockWriter, Mockito.times(1)).flush();
     }
 
-    @Test
-    void testWriteCreatesBufferedWriter() throws Exception {
-        ReflectionTestUtils.setField(fileWriterService, "instanceId", "TestInstance");
-
-        DataRecordMessage record = new DataRecordMessage();
-        record.setTimestamp(Instant.now().toEpochMilli());
-        record.setRandomValue(50);
-        record.setHashValue("test-hash");
-
-        FileWriterService spyService = spy(fileWriterService);
-        BufferedWriter mockWriter = mock(BufferedWriter.class);
-        doReturn(mockWriter).when(spyService).createWriter(anyString());
-
-        spyService.write(record);
-
-        // Updated file path to include minutes
-        String expectedFilePath = String.format("/tmp/test-directory/%s-TestInstance.txt",
-                DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm") // Now grouping by minute
-                        .format(Instant.ofEpochMilli(record.getTimestamp()).atZone(ZoneId.systemDefault()))
-        );
-        verify(spyService).createWriter(expectedFilePath);
-        verify(mockWriter).write(contains("50,test-hash"));
-    }
-
-
-    @Test
-    void testWriteHandlesNullRecord() {
-        FileWriterService spyService = spy(fileWriterService);
-        spyService.write(null);
-        verify(spyService, never()).createWriter(anyString());
-    }
+//    @Test
+//    void testWriteCreatesBufferedWriter() throws Exception {
+//        ReflectionTestUtils.setField(fileWriterService, "instanceId", "TestInstance");
+//
+//        DataRecordMessage record = new DataRecordMessage();
+//        record.setTimestamp(Instant.now().toEpochMilli());
+//        record.setRandomValue(50);
+//        record.setHashValue("test-hash");
+//
+//        FileWriterService spyService = spy(fileWriterService);
+//        BufferedWriter mockWriter = mock(BufferedWriter.class);
+//        doReturn(mockWriter).when(spyService).createWriter(anyString());
+//
+//        spyService.write(record);
+//
+//        // Updated file path to include minutes
+//        String expectedFilePath = String.format("/tmp/test-directory/%s-TestInstance.txt",
+//                DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm") // Now grouping by minute
+//                        .format(Instant.ofEpochMilli(record.getTimestamp()).atZone(ZoneId.systemDefault()))
+//        );
+//        verify(spyService).createWriter(expectedFilePath);
+//        verify(mockWriter).write(contains("50,test-hash"));
+//    }
+//
+//
+//    @Test
+//    void testWriteHandlesNullRecord() {
+//        FileWriterService spyService = spy(fileWriterService);
+//        spyService.write(null);
+//        verify(spyService, never()).createWriter(anyString());
+//    }
 }

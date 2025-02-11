@@ -4,21 +4,23 @@ server:
 spring:
   application:
     name: data-filter-service
-
-  # RabbitMQ Connection Configuration
-  rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
-    port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
-    publisher-confirm-type: simple
-    publisher-returns: true
-    cache:
-      connection:
-        mode: connection
-      channel:
-        size: 25
-    dynamic: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      batch-size: 16384  # 16 KB
+      buffer-memory: 33554432  # 32 MB buffer
+      properties:
+        compression.type: snappy
+        linger.ms: 10
+        request.timeout.ms: 30000
+        max.block.ms: 30000
+        acks: all
+        retries: 3
+        retry.backoff.ms: 1000
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
 
 # WebSocket Configuration
 websocket:
@@ -27,12 +29,12 @@ websocket:
     max-retries: 5
     retry-delay-ms: 2000
 
-# RabbitMQ Queue Configuration
-rabbitmq:
-  exchange-name: ${RABBITMQ_EXCHANGE_NAME:data-exchange}
-  database-queue: database-queue
-  mongodb-queue: mongodb-queue
-  routing-key: common.event
+# Kafka Topics Configuration
+kafka:
+  topic:
+    name: data-topic
+    partitions: 3
+    replication-factor: 1
 
 # File Storage Configuration
 storage:
@@ -48,8 +50,6 @@ storage:
 # Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
-    metrics:
-      enabled: true
     configs:
       default:
         slidingWindowSize: 10
@@ -57,21 +57,34 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 3
         waitDurationInOpenState: 5s
         failureRateThreshold: 50
-        eventConsumerBufferSize: 10
     instances:
       webSocketCircuitBreaker:
         baseConfig: default
-        failureRateThreshold: 50
-        waitDurationInOpenState: 10000ms
-        slidingWindowSize: 10
-      messageQueueCircuitBreaker:
-        failureRateThreshold: 50
-        slowCallRateThreshold: 50
-        slowCallDurationThreshold: 2000ms
-        waitDurationInOpenState: 5s
-        permittedNumberOfCallsInHalfOpenState: 2
+      kafkaCircuitBreaker:
+        baseConfig: default
+      fileWriterCircuitBreaker:
         slidingWindowSize: 10
         minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+      websocketHandlerCircuitBreaker:
+        baseConfig: default
+  retry:
+    instances:
+      websocketRetry:
+        maxAttempts: 3
+        waitDuration: 2000
+        exponentialBackoffMultiplier: 2
+      kafkaRetry:
+        maxAttempts: 5
+        waitDuration: 1000
+        exponentialBackoffMultiplier: 1.5
+      fileWriterRetry:
+        maxAttempts: 4
+        waitDuration: 1500
 
 # Monitoring Configuration
 management:
@@ -85,7 +98,7 @@ management:
   health:
     circuitbreakers:
       enabled: true
-    rabbit:
+    kafka:
       enabled: true
   metrics:
     tags:
@@ -94,9 +107,10 @@ management:
       percentiles-histogram:
         http.server.requests: true
         resilience4j.circuitbreaker.calls: true
+        kafka.producer: true
 
 # Logging Configuration
 logging:
   level:
     com.dataflow.dataflowsystem.filter: DEBUG
-    org.springframework.amqp: DEBUG
+    org.apache.kafka: INFO

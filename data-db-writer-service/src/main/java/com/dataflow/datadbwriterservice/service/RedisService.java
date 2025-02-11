@@ -6,13 +6,18 @@ import com.dataflow.model.DataRecordMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.data.redis.connection.stream.*;
 import org.springframework.data.redis.connection.stream.Record;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,12 +31,18 @@ public class RedisService {
     private static final String FIELD_NAME = "message";
     private static final String CONSUMER_NAME = UUID.randomUUID().toString();
 
+    @Value("${spring.redis.stream.batch-size:100}")
+    private int batchSize;
+
     private final RedisTemplate<String, DataRecordMessage> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final StreamOperations<String, Object, Object> streamOperations;
 
-    public RedisService(RedisTemplate<String, DataRecordMessage> redisTemplate, ObjectMapper objectMapper) {
+    public RedisService(RedisTemplate<String, DataRecordMessage> redisTemplate,
+                        ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.streamOperations = redisTemplate.opsForStream();
     }
 
     @PostConstruct
@@ -49,38 +60,57 @@ public class RedisService {
 
     @CircuitBreaker(name = SERVICE_NAME)
     @MonitorMetrics(value = "redis", operation = "write_to_stream")
-    public void writeToStream(String jsonMessage) {
+    public void writeToStreamBatch(List<DataRecordMessage> records) {
+        if (records.isEmpty()) {
+            return;
+        }
+
         try {
-            Map<String, String> fields = new HashMap<>();
-            fields.put("message", jsonMessage);
+            List<Record<String, ?>> redisRecords = records.stream()
+                    .map(this::convertToRedisRecord)
+                    .collect(Collectors.toList());
 
-            RecordId recordId = redisTemplate.opsForStream()
-                    .add(Record.of(fields).withStreamKey(STREAM_KEY));
-
-            log.debug("Written to Redis stream with ID: {}", recordId);
+            for (Record<String, ?> record : redisRecords) {
+                streamOperations.add(record);
+            }
+            log.debug("Successfully wrote batch of {} records to Redis stream", records.size());
         } catch (Exception e) {
-            log.error("Failed to write to Redis stream", e);
+            log.error("Failed to write batch to Redis stream: {}", e.getMessage());
+            throw new RuntimeException("Failed to write to Redis stream", e);
+        }
+    }
+
+    private MapRecord<String, String, String> convertToRedisRecord(DataRecordMessage message) {
+        try {
+            Map<String, String> fieldMap = new HashMap<>();
+            fieldMap.put("message", objectMapper.writeValueAsString(message));
+            return MapRecord.create(STREAM_KEY, fieldMap);
+        } catch (Exception e) {
+            log.error("Failed to convert message to Redis record: {}", e.getMessage());
+            throw new RuntimeException("Failed to convert message", e);
         }
     }
 
     @CircuitBreaker(name = SERVICE_NAME)
-    @MonitorMetrics(value = "redis", operation = "read_from_stream")
+    @Retry(name = SERVICE_NAME)
+    @MonitorMetrics(value = "redis", operation = "read_batch")
     public List<MapRecord<String, Object, Object>> readFromStream() {
         try {
-            Consumer consumer = Consumer.from(CONSUMER_GROUP, "consumer-1");
+            Consumer consumer = Consumer.from(CONSUMER_GROUP, CONSUMER_NAME);
+            StreamReadOptions readOptions = StreamReadOptions.empty()
+                    .block(Duration.ofMillis(100))
+                    .count(batchSize);
 
-            List<MapRecord<String, Object, Object>> records = redisTemplate.opsForStream()
-                    .read(consumer, StreamReadOptions.empty().count(10),
-                            StreamOffset.create(STREAM_KEY, ReadOffset.lastConsumed()));
+            List<MapRecord<String, Object, Object>> records = streamOperations.read(
+                    consumer,
+                    readOptions,
+                    StreamOffset.create(STREAM_KEY, ReadOffset.lastConsumed())
+            );
 
-            if (records == null || records.isEmpty()) {
-                return Collections.emptyList();
-            }
-
-            return records;
+            return records != null ? records : Collections.emptyList();
         } catch (Exception e) {
-            log.error("Failed to read from Redis stream", e);
-            throw e;
+            log.error("Failed to read from Redis stream: {}", e.getMessage());
+            throw new RedisSystemException("Failed to read from Redis stream", e);
         }
     }
 
