@@ -1,105 +1,144 @@
 # Data Flow System
 
-## Overview
-The **Data Flow System** is a microservices-based application designed to generate, process, filter, and store data efficiently using event-driven architecture. The system leverages **WebSockets**, **message queues**, and **multiple storage backends** to handle high-throughput data streams.
+## 🚀 Overview
+The **Data Flow System** is a horizontally scalable microservices-based architecture designed for efficient data generation, processing, and storage. The system is built using Spring Boot and integrates with Kafka, Redis, PostgreSQL, and MongoDB for high-performance data handling.
 
-## System Components
-The system consists of the following microservices:
+## 🏗️ Architecture
+The Data Flow System consists of **4 microservices**:
 
-### 1. **Data Generator Service**
-- **Functionality**:
-    - Generates data records containing:
-        - `timestamp`
-        - Random integer (0-100)
-        - Last 2 characters of the MD5 hash of the above values.
-    - Produces **5 records per second**.
-    - Sends the generated data to the **Data Filter Service** via WebSocket.
-    - **Circuit Breaker**: Stops sending data if the **Filter Service** is unavailable.
+1. **Data Generator Service**
+    - Generates data and sends it via WebSocket.
+    - Uses Redis for batch processing and caching.
 
-### 2. **Data Filter Service**
-- **Functionality**:
-    - Receives real-time data from **Data Generator Service** via WebSocket.
-    - Applies filtering logic:
-        - If `random value > 90`: Sends data to **RabbitMQ** for further processing.
-        - Otherwise: Appends the data to a file (**Buffered Writing** for efficiency).
-    - **Circuit Breaker**: Ensures stability if the **message queue** or **file system** is down.
+2. **Data Filter Service**
+    - Filters incoming data using rule-based logic (Easy Rules).
+    - Sends high-value data to Kafka for storage in databases.
+    - Supports file-based storage for regular data.
 
-### 3. **Message Queue Consumer Services**
-#### a) **Database Writer Service**
-- **Functionality**:
-    - Consumes filtered data from **RabbitMQ**.
-    - Stores the data into a **relational database (PostgreSQL)**.
-    - **Resilience Features**:
-        - **Circuit Breaker** to handle **database failures**.
-        - **Retry mechanism** with exponential backoff.
-        - **Metrics and monitoring** for database operations.
+3. **Data DB Writer Service**
+    - Consumes Kafka messages and writes processed data to PostgreSQL.
+    - Handles batch processing for efficient data insertion.
+    - Uses Circuit Breakers and Retry mechanisms for resilience.
+    - Integrates with Redis for intermediate message queuing.
 
-#### b) **MongoDB Writer Service**
-- **Functionality**:
-    - Consumes filtered data from **RabbitMQ**.
-    - Stores the data into **MongoDB**, applying nested document rules:
-        - If `hashValue > "99"`: Nest consecutive records into the same document.
-        - Otherwise: Create a new document.
-    - **Resilience Features**:
-        - **Circuit Breaker** to handle **MongoDB unavailability**.
-        - **Metrics tracking failures and latencies**.
-
-### 4. **Monitoring and Observability**
-- **Metrics collection** using **Micrometer & Prometheus**.
-- **Logging & tracing** integrated via **Spring AOP**.
-- **Health checks** for each service to ensure uptime.
+4. **Data MongoDB Writer Service**
+    - Consumes Kafka messages and stores nested records in MongoDB.
+    - Implements resilience patterns using Resilience4j.
+    - Handles batch processing for optimized MongoDB writes.
 
 ---
-## System Architecture
-### Data Flow Overview
-1. **Data Generator Service** streams real-time data via WebSocket.
-2. **Data Filter Service** processes data and routes it:
-    - **Message Queue** for high-value data.
-    - **File system** for other records.
-3. **Database Writer Service** and **MongoDB Writer Service** consume messages from the queue and store data.
-4. **Monitoring & Circuit Breakers** ensure resilience and observability.
 
-### Key Technologies Used
-- **Spring Boot** for microservices.
-- **WebSocket** for real-time data streaming.
-- **RabbitMQ** as a message broker.
-- **PostgreSQL & MongoDB** for structured and unstructured data.
-- **Resilience4j** for circuit breakers and fault tolerance.
-- **Micrometer & Prometheus** for monitoring.
-- **Docker & Docker Compose** for containerized deployment.
+## ⚙️ Technology Stack
+- **Java 17**
+- **Spring Boot**
+- **Kafka** (for messaging)
+- **Redis** (for caching & queueing)
+- **PostgreSQL & MongoDB** (for data storage)
+- **Resilience4j** (for Circuit Breaker & Retry mechanisms)
+- **Docker & Docker Compose** (for containerization)
 
 ---
-## Setup and Execution
 
-### 1. Clone the repository:
+## 🚀 Getting Started
+
+### Prerequisites
+- Java 17+
+- Docker & Docker Compose
+- Kafka, Redis, PostgreSQL, MongoDB
+
+### Clone the Repository
 ```bash
 git clone https://github.com/your-repo/data-flow-system.git
 cd data-flow-system
 ```
 
-### 2. Build and run the system:
+### Running with Docker Compose
 ```bash
-./gradlew build
-docker-compose up
+docker-compose up -d
 ```
 
-### 3. Monitor logs:
+### Running Locally
 ```bash
-docker-compose logs -f <service-name>
+./gradlew clean build
+./gradlew bootRun
 ```
 
-### 4. Run tests:
+---
+
+## 🗂️ Microservices Overview
+
+### 1️⃣ Data Generator Service
+- Generates real-time data.
+- Sends data via WebSocket.
+- Uses Redis for batch processing.
+
+### 2️⃣ Data Filter Service
+- Applies business rules to filter data.
+- Forwards critical data to Kafka.
+- Writes filtered data to files.
+
+### 3️⃣ Data DB Writer Service
+- Consumes Kafka topics.
+- Writes data to PostgreSQL.
+- Handles batch processing.
+- Implements Circuit Breaker and Retry mechanisms.
+- Integrates with Redis for stream processing.
+
+### 4️⃣ Data MongoDB Writer Service
+- Handles nested records.
+- Writes data to MongoDB.
+- Uses Circuit Breakers and Retry mechanisms.
+- Supports batch processing for efficient data writes.
+
+---
+
+## ⚙️ Configuration
+Configuration is managed via `application.yml` files:
+
+```yaml
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 2000
+```
+
+---
+
+## 🧪 Testing
+Run unit tests:
 ```bash
 ./gradlew test
 ```
 
 ---
-## Future Enhancements
-- Add a **stream processing layer** (Kafka or Flink) for complex event processing.
-- Implement **dynamic filtering** with a rule engine.
-- Extend **alerting mechanisms** for system failures.
-- Introduce **API Gateway** for centralized management.
+
+## 📊 Monitoring
+- Integrated with **Prometheus** and **Grafana**.
+- Exposes custom metrics for each microservice.
+- Health checks via Spring Actuator.
 
 ---
-This **Data Flow System** is designed for **scalability, resilience, and efficiency**, making it ideal for real-time data processing needs.
 
+## 🤝 Contributing
+1. Fork the repository.
+2. Create a new branch: `git checkout -b feature-xyz`
+3. Make your changes and commit: `git commit -m 'Add new feature'`
+4. Push to the branch: `git push origin feature-xyz`
+5. Open a pull request.
+
+
+---
